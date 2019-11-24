@@ -36,3 +36,9 @@ https://www.youtube.com/watch?v=tUapZ_JdHLE
 Het lijkt er dus op dat ik het voor elkaar kan krijgen met:
 1. Extra BJT transistor als buffer tussen de R2R ladder en de uitgang;
 2. Een LM386 als audio amplifier
+
+Probleem is dat de voltage devider de R2R ladder stoort. Oplossing is gewoon direct met de BJT verbinden, zonder capacitor. Probleem is dan wel dat ie niet netjes rond 0 volt centreert, en aan de onderkant niet helemaal netjes is.
+
+Beter is echt wel een rail-to-rail OpAmp gebruiken, bijvoorbeeld (LM358):
+https://forum.arduino.cc/index.php?topic=494646.0
+(single supply OpAmp)
