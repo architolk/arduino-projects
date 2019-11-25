@@ -117,7 +117,7 @@ Something is not quite right in this case: RFBA and RFBB should not be +5V, but 
 
 And as we don't use channel B, we can simply ground OUTB and not bother with RFBB.
 
-A better configuration (haven't tried yet):
+A better configuration (also works, haven't checked output of DAC on scope yet):
 
 |DAC Pin|Arduino Pin|Function|
 |-------|-----------|--------|
