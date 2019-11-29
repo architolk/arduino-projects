@@ -9,6 +9,12 @@ A4: Button inputs (via resistors analog inputs)
 
 ## Refs
 
+SD en Audio DAC:
+- https://www.instructables.com/id/Arduino-playing-wav-files/
+
+LM386 beschrijvingen:
+- https://www.youtube.com/watch?v=4ObzEft2R_g
+- https://www.youtube.com/watch?v=P4GsoMTv-SY
 
 TL072 beschrijving (de buffer):
 https://www.instructables.com/id/Arduino-Audio-Input/
@@ -209,3 +215,30 @@ Kinda the same circuit for the +7.5V reference voltage:
 - Resistors should have a 1.2 quotient, for example 4.7K resistors, with 2 470 resistors at one end:
 
 +9V - 470R - 470R - +7.5V - 4K7 - 0V (Capacitor: +7.5V - u470F - 0V)
+
+Dual voltage:
+|Pin| Routing |
+|---|---------|
+| 1 | Pin 3 of the DCA (RFBA) and output to speaker/amplifier |
+| 2 | Pin 2 of the DAC (OUTA) |
+| 3 | GND, 0V |
+| 4 | -9V |
+| 5 | Not used |
+| 6 | Not used |
+| 7 | Not used |
+| 8 | +9V |
+
+
+
+For the SD card:
+
+|SD Card|Arduino|
+|-------|-------|
+| GND   | GND   |
+| +3.3V |       |
+| +5V   | +5V   |
+| CS    | 10    |
+| MOSI  | 11    |
+| SCK   | 13    |
+| MISO  | 12    |
+| GND   |       |
