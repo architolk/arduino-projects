@@ -19,6 +19,9 @@ LM386 beschrijvingen:
 TL072 beschrijving (de buffer):
 https://www.instructables.com/id/Arduino-Audio-Input/
 
+Single rail power supply gebruik van een op amp:
+https://www.youtube.com/watch?v=DGTA6lxOX9k
+
 tlc7528cn beschrijving (de DAC):
 https://www.instructables.com/id/Stereo-Audio-with-Arduino/
 
@@ -242,3 +245,14 @@ For the SD card:
 | SCK   | 13    |
 | MISO  | 12    |
 | GND   |       |
+
+Nog steeds noise...
+Het lijkt op power consumption en kijk eens hier:
+https://electronics.stackexchange.com/questions/37173/low-power-micro-sd-card-storage
+
+En dit:
+https://electronics.stackexchange.com/questions/140761/arduino-how-do-i-reduce-the-noise-in-my-circuit
+https://forum.allaboutcircuits.com/threads/noise-on-audio-amplifier-for-arduino-suspected-to-be-related-to-digital-circuit.150665/
+
+(overigens: veel ruis is verdwenen door alle serial communicatie weg te laten...
+ volgende stap: overgaan op breadboard Arduino IC: minimale elementen!)
