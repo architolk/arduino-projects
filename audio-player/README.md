@@ -22,6 +22,12 @@ https://www.instructables.com/id/Arduino-Audio-Input/
 Single rail power supply gebruik van een op amp:
 https://www.youtube.com/watch?v=DGTA6lxOX9k
 
+Verder uitgelegd in:
+https://tangentsoft.net/elec/vgrounds.html
+
+(hierin dus ook uitleg waarom een condensator VOOR de railsplitter beter is dan een condensator NA de railsplitter!)
+
+
 tlc7528cn beschrijving (de DAC):
 https://www.instructables.com/id/Stereo-Audio-with-Arduino/
 
