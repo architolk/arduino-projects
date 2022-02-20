@@ -15,11 +15,13 @@ FASTLED_USING_NAMESPACE
 // With respect to the Arduino-version, two changes are made:
 // (1) The define-statement at the top, to use the hardware SPI
 // (2) The data and clock pins for the ESP32 pinout
+// (3) The OE pin assignment
 
 #if defined(FASTLED_VERSION) && (FASTLED_VERSION < 3001000)
 #warning "Requires FastLED 3.1 or later; check github for latest code."
 #endif
 
+#define OE_PIN      17
 #define DATA_PIN    23
 #define CLK_PIN     18
 #define LED_TYPE    APA102
@@ -28,10 +30,12 @@ FASTLED_USING_NAMESPACE
 CRGB leds[NUM_LEDS];
 
 #define BRIGHTNESS          16 //Was 96
-#define FRAMES_PER_SECOND  60
+#define FRAMES_PER_SECOND  360
 
 void setup() {
-  delay(3000); // 3 second delay for recovery
+  digitalWrite(OE_PIN, LOW);
+  delay(1000); // 3 second delay for recovery
+  digitalWrite(OE_PIN, HIGH);
 
   // tell FastLED about the LED strip configuration
   //FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
@@ -58,7 +62,7 @@ void loop()
   // send the 'leds' array out to the actual LED strip
   FastLED.show();
   // insert a delay to keep the framerate modest
-  //FastLED.delay(1000/FRAMES_PER_SECOND);
+  FastLED.delay(1000/FRAMES_PER_SECOND);
 
   // do some periodic updates
   EVERY_N_MILLISECONDS( 20 ) { gHue++; } // slowly cycle the "base color" through the rainbow
