@@ -15,6 +15,7 @@ FASTLED_USING_NAMESPACE
 #warning "Requires FastLED 3.1 or later; check github for latest code."
 #endif
 
+#define OE_PIN      5
 #define DATA_PIN    11
 #define CLK_PIN     13
 #define LED_TYPE    APA102
@@ -23,10 +24,12 @@ FASTLED_USING_NAMESPACE
 CRGB leds[NUM_LEDS];
 
 #define BRIGHTNESS          16 //Was 96
-#define FRAMES_PER_SECOND  60
+#define FRAMES_PER_SECOND  360
 
 void setup() {
-  delay(3000); // 3 second delay for recovery
+  digitalWrite(OE_PIN, LOW);
+  delay(1000); // 3 second delay for recovery
+  digitalWrite(OE_PIN, HIGH);
 
   // tell FastLED about the LED strip configuration
   //FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
@@ -53,7 +56,7 @@ void loop()
   // send the 'leds' array out to the actual LED strip
   FastLED.show();  
   // insert a delay to keep the framerate modest
-  //FastLED.delay(1000/FRAMES_PER_SECOND); 
+  FastLED.delay(1000/FRAMES_PER_SECOND); 
 
   // do some periodic updates
   EVERY_N_MILLISECONDS( 20 ) { gHue++; } // slowly cycle the "base color" through the rainbow
