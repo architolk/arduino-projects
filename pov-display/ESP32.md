@@ -14,3 +14,9 @@ According to [this addition](https://github.com/FastLED/FastLED/pull/1047/files)
 |DI|11|GPIO-23|MOSI (Master output - Slave Input), the SPI output)|
 ||12|GPIO-19|MISO (Master input - Slave output), the SPI input: we don't use this one|
 |CI|13|GPIO-18|SCK - Clock|
+
+Strangly enough: it doesn't work.. even the bitbanging doesn't work... mmmm...
+
+Another one:
+
+![](pinoutDOIT32devkitv1-600x600w.png)
