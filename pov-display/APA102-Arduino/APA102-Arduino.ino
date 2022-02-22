@@ -27,6 +27,7 @@ CRGB leds[NUM_LEDS];
 #define FRAMES_PER_SECOND  360
 
 void setup() {
+  pinMode(OE_PIN, OUTPUT);
   digitalWrite(OE_PIN, LOW);
   delay(1000); // 3 second delay for recovery
   digitalWrite(OE_PIN, HIGH);

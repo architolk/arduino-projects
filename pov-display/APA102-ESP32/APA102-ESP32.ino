@@ -1,4 +1,5 @@
 #define FASTLED_ALL_PINS_HARDWARE_SPI
+#include <SPI.h>
 #include <FastLED.h>
 
 FASTLED_USING_NAMESPACE
@@ -21,6 +22,7 @@ FASTLED_USING_NAMESPACE
 #warning "Requires FastLED 3.1 or later; check github for latest code."
 #endif
 
+#define LED     22
 #define OE_PIN      17
 #define DATA_PIN    23
 #define CLK_PIN     18
@@ -32,17 +34,11 @@ CRGB leds[NUM_LEDS];
 #define BRIGHTNESS          16 //Was 96
 #define FRAMES_PER_SECOND  360
 
+bool onceFlag = true;
+
 void setup() {
-  digitalWrite(OE_PIN, LOW);
-  delay(1000); // 3 second delay for recovery
-  digitalWrite(OE_PIN, HIGH);
-
-  // tell FastLED about the LED strip configuration
-  //FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
-  FastLED.addLeds<LED_TYPE,DATA_PIN,CLK_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
-
-  // set master brightness control
-  FastLED.setBrightness(BRIGHTNESS);
+//  pinMode(OE_PIN, OUTPUT);
+  pinMode(LED, OUTPUT);
 }
 
 
@@ -54,8 +50,25 @@ SimplePatternList gPatterns = { rainbow, sinelon};
 uint8_t gCurrentPatternNumber = 0; // Index number of which pattern is current
 uint8_t gHue = 0; // rotating "base color" used by many of the patterns
 
+void mySetup() {
+//  digitalWrite(OE_PIN, LOW);
+  delay(1000); // 3 second delay for recovery
+//  digitalWrite(OE_PIN, HIGH);
+
+  // tell FastLED about the LED strip configuration
+  //FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+  FastLED.addLeds<LED_TYPE,DATA_PIN,CLK_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+
+  // set master brightness control
+  FastLED.setBrightness(BRIGHTNESS);
+}
+
 void loop()
 {
+  if (onceFlag) {
+    onceFlag = false;
+    mySetup();
+  }
   // Call the current pattern function once, updating the 'leds' array
   gPatterns[gCurrentPatternNumber]();
 
@@ -75,6 +88,7 @@ void nextPattern()
 {
   // add one to the current pattern number, and wrap around at the end
   gCurrentPatternNumber = (gCurrentPatternNumber + 1) % ARRAY_SIZE( gPatterns);
+  digitalWrite(LED, (gCurrentPatternNumber % 2));
 }
 
 void rainbow()
