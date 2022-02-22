@@ -15,8 +15,8 @@ According to [this addition](https://github.com/FastLED/FastLED/pull/1047/files)
 ||12|GPIO-19|MISO (Master input - Slave output), the SPI input: we don't use this one|
 |CI|13|GPIO-18|SCK - Clock|
 
-Strangly enough: it doesn't work.. even the bitbanging doesn't work... mmmm...
-
 Another one:
 
 ![](pinoutDOIT32devkitv1-1500x1500w.png)
+
+This first one works, although putting to much in the setup() routines doesn't work...
