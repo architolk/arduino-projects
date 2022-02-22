@@ -19,4 +19,4 @@ Strangly enough: it doesn't work.. even the bitbanging doesn't work... mmmm...
 
 Another one:
 
-![](pinoutDOIT32devkitv1-600x600w.png)
+![](pinoutDOIT32devkitv1-1500x1500w.png)
