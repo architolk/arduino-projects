@@ -30,13 +30,25 @@ The fun is that we don't want to convert cartesian to polar coordinates, but the
 
 Let theta360 be the theta of the polar coordinates between 0-360 degrees, we wan't a 3 degree precision, so we have an index from 0 - 119. Let r be the radius from 1 to 60 (we have 60 leds, the centre of the picture can't be display as this is te position of the rotor axis).
 
+```
 r = [1..60]
 index = [0..119]
 theta360 = index * 3
 theta = (theta / 180) * Math.PI
 x = r * Math.cos(theta)+60
 y = r * Math.sin(theta)+60
+```
 
 As the (0,0) position in a bitmap is topleft, we need to shift to the "middle" of the bitmap. So maybe we want 121 pixels?
 
 Notice that we can only show circular pictures: the corners can't be displayed and only the top of a rectangular image will be visible.
+
+## Gamma correction
+
+Gamma correction should be used, as is explained in [this article](https://learn.adafruit.com/led-tricks-gamma-correction). Some more discussion and some hint to how this is done in FastLED can be found in [this post](https://forum.makerforums.info/t/is-there-a-simple-way-to-increase-the-contrast-of-the-colors-in-my/63963/12).
+
+```
+original = (color/255.0)
+adjusted = pow(original,gamma)*255
+```
+A gamma of 2.5 or 2.2 is popular. We will do the gamma correction on the App-site, so no extra code is necessary on the ESP32.
