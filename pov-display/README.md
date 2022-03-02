@@ -52,3 +52,9 @@ original = (color/255.0)
 adjusted = pow(original,gamma)*255
 ```
 A gamma of 2.5 or 2.2 is popular. We will do the gamma correction on the App-site, so no extra code is necessary on the ESP32.
+
+## Power issues
+
+We seem to have some power issues when the ESP32 is starting up and the light are also receiving power (which is not necessary at that point).  We will use a MOSFET IRLZ44N to switch off the leds during startup. The MOSFET needs around 2.0V to completely turn on. To make this work, the load should be on the Drain-pin of the MOSFET, putting the MOSFET between the load and ground.
+
+Strangely enough the APA102 seems to connect to ground via the data/clock pins so we also need to turn of the level shifter. This is quite easy, as we can use the same signal for the MOSFET and the level shifter Output-enable pins.
