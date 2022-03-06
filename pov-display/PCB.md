@@ -9,7 +9,7 @@ The PCB will be placed on top of the circula disc that is part of the rotor axis
 - The LEDs are depicted as a four pin jumper, with another (large) capacitor
 - The MOSFET contains both resistors, the one to ground for "clearing" the MOSFET after power shutdown, and the current limiting resistor to the gate pin.
 - The hall sensor is depicted as a three pin jumper, with the pull-up resistor to the 3.3V pin of the ESP32
-- The level shifter contains a small 0.2uF capacitor, as according to the datasheet.
+- The level shifter contains a small 0.1uF capacitor, as according to the datasheet.
 
 This results in the following PCB layout:
 
