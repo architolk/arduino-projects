@@ -1,7 +1,6 @@
 // Native APA102 implementation
 // Using SPI
 #include <SPI.h>
-#include <SoftSPI.h>
 #include "BluetoothSerial.h"
 
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
@@ -10,20 +9,20 @@
 
 BluetoothSerial SerialBT;
 
+//HALLPIN will be D7
 //#define HALLPIN 16
 //READYPIN wil be D4
 //#define READYPIN 17
 //#define LEDPIN 22
 
-#define LEDS 50
-#define BRIGHTNESS 5
+#define LEDS 60
+#define BRIGHTNESS 3
 
 #define BUFLENGTH 180
 #define RESOLUTION 120
 byte buffer[RESOLUTION][BUFLENGTH];
 
-//SPIClass ledSPI(VSPI);
-SoftSPI ledSPI(D2,D5,D3);
+SPIClass ledSPI(HSPI);
 
 int startupCount = -3;
 byte theta = 0;
@@ -37,7 +36,7 @@ unsigned long currentRotationTime,spinOld,spinNew = 0;
 void setup() {
   pinMode(D4, OUTPUT);
   //pinMode(LEDPIN, OUTPUT);
-  //pinMode(HALLPIN, INPUT);
+  pinMode(D7, INPUT_PULLUP);
 
   //set rotation time to 1 second (120 lines per second)
   rotationTime = 1000000;
@@ -53,7 +52,7 @@ void setup() {
 
   timeNew = micros();
   timeOld = timeNew;
-  //attachInterrupt(digitalPinToInterrupt(HALLPIN), magnetPresent, FALLING);
+  attachInterrupt(digitalPinToInterrupt(D7), magnetPresent, FALLING);
 }
 
 IRAM_ATTR void magnetPresent() {
@@ -67,7 +66,7 @@ void loop() {
     //digitalWrite(LEDPIN, HIGH);
     //Only update the LEDs to random the first time, next will be the serial bluetooth
     digitalWrite(D4, HIGH);
-    ledSPI.begin();
+    ledSPI.begin(D3,D5,D2);
     updateLEDs();
     doOnce=false;
   }
@@ -117,14 +116,6 @@ void loop() {
   } else {
     if (imgLoaded==true) {
       //Time do to some rotation stuff!
-      /*
-      delay(100); //Small delay: should change to the real framerate of the rotor
-      rotor++;
-      if (rotor==RESOLUTION) {
-        rotor=0;
-      }
-      updateLEDs();
-      */
       spinNew = micros();
       if ((spinNew-spinOld)*RESOLUTION>currentRotationTime) {
         spinOld = spinNew;
@@ -142,27 +133,25 @@ void loop() {
 }
 
 void updateLEDs() {
-  //Not sure if really necessary
-  //SPI.beginTransaction(SPISettings(14000000, MSBFIRST, SPI_MODE0));
+  ledSPI.beginTransaction(SPISettings(14000000, MSBFIRST, SPI_MODE0));
   //Start frame: 32 bits of zeros
-  ledSPI.transfer(0x00);
-  ledSPI.transfer(0x00);
-  ledSPI.transfer(0x00);
-  ledSPI.transfer(0x00);
+  ledSPI.write(0x00);
+  ledSPI.write(0x00);
+  ledSPI.write(0x00);
+  ledSPI.write(0x00);
   for (uint8_t i = 0; i<LEDS; i++) {
-    ledSPI.transfer(0xE0 + BRIGHTNESS);
+    ledSPI.write(0xE0 + BRIGHTNESS);
     //Buffer contains colors as RGB, the APA102 expects BGR
-    ledSPI.transfer(buffer[rotor][i*3+2]); //Blue
-    ledSPI.transfer(buffer[rotor][i*3+1]); //Green
-    ledSPI.transfer(buffer[rotor][i*3]);   //Red
+    ledSPI.write(buffer[rotor][i*3+2]); //Blue
+    ledSPI.write(buffer[rotor][i*3+1]); //Green
+    ledSPI.write(buffer[rotor][i*3]);   //Red
   }
   //32 bits of zeros are enough for 64 LEDs, might re
   // End frame: 8+8*(leds >> 4) clock cycles
   for (uint8_t i = 0; i<LEDS; i+=16) {
-    ledSPI.transfer(0x00); // 8 more clock cycles
+    ledSPI.write(0x00); // 8 more clock cycles
   }
-  //Not sure if really necessary
-  //SPI.endTransaction();
+  ledSPI.endTransaction();
 }
 
 void requestThetaIndex(byte theta) {
