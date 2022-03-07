@@ -10,8 +10,9 @@
 
 BluetoothSerial SerialBT;
 
-#define HALLPIN 16
-#define READYPIN 17 //READYPIN wil be D4
+//#define HALLPIN 16
+//READYPIN wil be D4
+//#define READYPIN 17
 //#define LEDPIN 22
 
 #define LEDS 50
@@ -38,8 +39,8 @@ void setup() {
   //pinMode(LEDPIN, OUTPUT);
   //pinMode(HALLPIN, INPUT);
 
-  //set rotation time to 1 second
-  rotationTime = 1000;
+  //set rotation time to 1 second (120 lines per second)
+  rotationTime = 1000000;
 
   for (uint8_t i=0; i<BUFLENGTH; i++) {
     buffer[0][i]=0;
