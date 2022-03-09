@@ -113,6 +113,15 @@ void loop() {
 	}
   */
 
+  // This should be the correct part for the write-stuff
+  /*
+  if (Serial.available()) {
+    pTxCharacteristic->setValue(Serial.read()); //Don't know if this compiles: maybe we need to convert String to std::string
+    pTxCharacteristic->notify();
+    delay(10); // bluetooth stack will go into congestion, if too many packets are sent
+  }
+  */
+
     // disconnecting
     if (!deviceConnected && oldDeviceConnected) {
         delay(500); // give the bluetooth stack the chance to get things ready
