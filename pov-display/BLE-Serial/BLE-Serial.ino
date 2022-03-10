@@ -53,21 +53,38 @@ class MyCallbacks: public BLECharacteristicCallbacks {
       std::string rxValue = pCharacteristic->getValue();
 
       if (rxValue.length() > 0) {
-        Serial.println("*********");
-        Serial.print("Received Value: ");
-        for (int i = 0; i < rxValue.length(); i++)
-          Serial.print(rxValue[i]);
-
-        Serial.println();
-        Serial.println("*********");
+        if ((rxValue[0]==255) && (rxValue[1]==0) && (rxValue[2]==128)) {
+          Serial.println("=== Start receiving image!");
+          requestLine();
+        } else {
+          for (int i = 0; i < rxValue.length(); i++)
+            //Serial.print(rxValue[i]);
+            Serial.print(String(rxValue[i],DEC)+"-");
+  
+          Serial.println();
+          if (txValue<120) {
+            requestLine();
+          } else {
+            Serial.println("=== Image received! ===");
+          }
+        }
       }
     }
+    
+    void requestLine() {
+      if (deviceConnected) {
+        if (txValue<120) {
+          pTxCharacteristic->setValue(&txValue, 1);
+          pTxCharacteristic->notify();
+          txValue++;
+          delay(10); // bluetooth stack will go into congestion, if too many packets are sent
+        }
+      }
+    }
+
 };
 
-
-void setup() {
-  Serial.begin(115200);
-
+void setupBLE() {
   // Create the BLE Device
   BLEDevice::init("UART Service");
 
@@ -80,16 +97,16 @@ void setup() {
 
   // Create a BLE Characteristic
   pTxCharacteristic = pService->createCharacteristic(
-										CHARACTERISTIC_UUID_TX,
-										BLECharacteristic::PROPERTY_NOTIFY
-									);
+                    CHARACTERISTIC_UUID_TX,
+                    BLECharacteristic::PROPERTY_NOTIFY
+                  );
 
   pTxCharacteristic->addDescriptor(new BLE2902());
 
   BLECharacteristic * pRxCharacteristic = pService->createCharacteristic(
-											 CHARACTERISTIC_UUID_RX,
-											BLECharacteristic::PROPERTY_WRITE
-										);
+                       CHARACTERISTIC_UUID_RX,
+                      BLECharacteristic::PROPERTY_WRITE
+                    );
 
   pRxCharacteristic->setCallbacks(new MyCallbacks());
 
@@ -98,6 +115,11 @@ void setup() {
 
   // Start advertising
   pServer->getAdvertising()->start();
+}
+
+void setup() {
+  Serial.begin(115200);
+  setupBLE();
   Serial.println("Waiting a client connection to notify...");
 }
 
