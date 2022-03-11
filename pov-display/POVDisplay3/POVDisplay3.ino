@@ -69,13 +69,23 @@ class MyCallbacks: public BLECharacteristicCallbacks {
           requestThetaIndex();
         } else {
           for (int i = 0; i < rxValue.length(); i++) {
-            buffer[theta][i]=rxValue[i]
+            //Failsafe: length should be BUFLENGTH, but just in case!
+            if (i<BUFLENGTH) {
+              buffer[theta][i]=rxValue[i]
+            }
           }
+          // Failsafe: if length < BUFLENGTH, pad with zeros
+          for (int i = rxValue.length(); i < BUFLENGTH; i++) {
+            buffer[theta]i]=0;
+          }
+          // Request next line, or finish when all lines are received
+          theta++;
           if (theta<RESOLUTION) {
             requestThetaIndex();
           } else {
             imgLoaded = true;
             imgLoading = false;
+            updateLEDs();
           }
         }
       }
@@ -86,7 +96,6 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         if (theta<RESOLUTION) {
           pTxCharacteristic->setValue(&theta, 1);
           pTxCharacteristic->notify();
-          theta++;
           delay(10); // bluetooth stack will go into congestion, if too many packets are sent
         }
       }
@@ -187,7 +196,6 @@ void loop() {
   if (!deviceConnected && oldDeviceConnected) {
       delay(500); // give the bluetooth stack the chance to get things ready
       pServer->startAdvertising(); // restart advertising
-      Serial.println("start advertising");
       oldDeviceConnected = deviceConnected;
   }
   // connecting
@@ -217,14 +225,4 @@ void updateLEDs() {
     ledSPI.write(0x00); // 8 more clock cycles
   }
   ledSPI.endTransaction();
-}
-
-void requestThetaIndex(byte theta) {
-  //Failsafe: theta should not be langer than RESOLUTION
-  if (theta<RESOLUTION) {
-    /*
-    SerialBT.write(theta);
-    */
-    delay(10);
-  }
 }
