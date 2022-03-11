@@ -71,12 +71,12 @@ class MyCallbacks: public BLECharacteristicCallbacks {
           for (int i = 0; i < rxValue.length(); i++) {
             //Failsafe: length should be BUFLENGTH, but just in case!
             if (i<BUFLENGTH) {
-              buffer[theta][i]=rxValue[i]
+              buffer[theta][i]=rxValue[i];
             }
           }
           // Failsafe: if length < BUFLENGTH, pad with zeros
           for (int i = rxValue.length(); i < BUFLENGTH; i++) {
-            buffer[theta]i]=0;
+            buffer[theta][i]=0;
           }
           // Request next line, or finish when all lines are received
           theta++;
@@ -85,7 +85,6 @@ class MyCallbacks: public BLECharacteristicCallbacks {
           } else {
             imgLoaded = true;
             imgLoading = false;
-            updateLEDs();
           }
         }
       }
