@@ -13,11 +13,14 @@
 #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 
-//HALLPIN will be D7
-//#define HALLPIN 16
-//READYPIN wil be D4
-//#define READYPIN 17
-//#define LEDPIN 22
+//MOSIPIN will be D3
+#define MOSIPIN 26
+//CLKPIN will be D4
+#define CLKPIN 27
+//HALLPIN will be D2
+#define HALLPIN 25
+//READYPIN wil be D7
+#define READYPIN 13
 
 #define LEDS 60
 #define BRIGHTNESS 3
@@ -140,9 +143,9 @@ void setupBLE() {
 // =========
 
 void setup() {
-  pinMode(D4, OUTPUT);
+  pinMode(READYPIN, OUTPUT);
   //pinMode(LEDPIN, OUTPUT);
-  pinMode(D7, INPUT_PULLUP);
+  pinMode(HALLPIN, INPUT_PULLUP);
 
   //set rotation time to 1 second (120 lines per second)
   rotationTime = 1000000;
@@ -158,7 +161,7 @@ void setup() {
 
   timeNew = micros();
   timeOld = timeNew;
-  attachInterrupt(digitalPinToInterrupt(D7), magnetPresent, FALLING);
+  attachInterrupt(digitalPinToInterrupt(HALLPIN), magnetPresent, FALLING);
 }
 
 IRAM_ATTR void magnetPresent() {
@@ -171,8 +174,8 @@ void loop() {
   if (doOnce==true) {
     //digitalWrite(LEDPIN, HIGH);
     //Only update the LEDs to random the first time, next will be the serial bluetooth
-    digitalWrite(D4, HIGH);
-    ledSPI.begin(D3,D5,D2);
+    digitalWrite(READYPIN, HIGH);
+    ledSPI.begin(CLKPIN,D5,MOSIPIN);
     updateLEDs();
     doOnce=false;
   }
