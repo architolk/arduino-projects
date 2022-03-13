@@ -22,10 +22,11 @@
 //READYPIN wil be D7
 #define READYPIN 13
 
-#define LEDS 60
+#define LEDS 83
 #define BRIGHTNESS 3
 
-#define BUFLENGTH 180
+//BUFLENGTH shoulde be at least 3x LEDS count
+#define BUFLENGTH 249
 #define RESOLUTION 120
 byte buffer[RESOLUTION][BUFLENGTH];
 
@@ -71,23 +72,31 @@ class MyCallbacks: public BLECharacteristicCallbacks {
           theta = 0;
           requestThetaIndex();
         } else {
-          for (int i = 0; i < rxValue.length(); i++) {
-            //Failsafe: length should be BUFLENGTH, but just in case!
-            if (i<BUFLENGTH) {
-              buffer[theta][i]=rxValue[i];
+          if (imgLoading) {
+            for (int i = 0; i < rxValue.length(); i++) {
+              //Failsafe: length should be BUFLENGTH, but just in case!
+              if (i<BUFLENGTH) {
+                buffer[theta][i]=rxValue[i];
+              }
             }
-          }
-          // Failsafe: if length < BUFLENGTH, pad with zeros
-          for (int i = rxValue.length(); i < BUFLENGTH; i++) {
-            buffer[theta][i]=0;
-          }
-          // Request next line, or finish when all lines are received
-          theta++;
-          if (theta<RESOLUTION) {
-            requestThetaIndex();
+            // Failsafe: if length < BUFLENGTH, pad with zeros
+            for (int i = rxValue.length(); i < BUFLENGTH; i++) {
+              buffer[theta][i]=0;
+            }
+            // Request next line, or finish when all lines are received
+            theta++;
+            if (theta<RESOLUTION) {
+              requestThetaIndex();
+            } else {
+              imgLoaded = true;
+              imgLoading = false;
+            }
           } else {
-            imgLoaded = true;
-            imgLoading = false;
+            //Something else - we can put control instructions in this part
+            long number = std::stoi(rxValue);
+            if (number>0) {
+              rotationTime = 1000*number;
+            }
           }
         }
       }
@@ -147,8 +156,8 @@ void setup() {
   //pinMode(LEDPIN, OUTPUT);
   pinMode(HALLPIN, INPUT_PULLUP);
 
-  //set rotation time to 1 second (120 lines per second)
-  rotationTime = 1000000;
+  //set rotation time to 0.28 second (429 lines per second)
+  rotationTime = 280000;
 
   for (uint8_t i=0; i<BUFLENGTH; i++) {
     buffer[0][i]=0;
@@ -161,7 +170,8 @@ void setup() {
 
   timeNew = micros();
   timeOld = timeNew;
-  attachInterrupt(digitalPinToInterrupt(HALLPIN), magnetPresent, FALLING);
+  //Hall sensor doesn't work - skip for now
+  //attachInterrupt(digitalPinToInterrupt(HALLPIN), magnetPresent, FALLING);
 }
 
 IRAM_ATTR void magnetPresent() {
