@@ -45,6 +45,7 @@ boolean imgLoaded = false;
 boolean imgLoading = false;
 
 volatile unsigned long rotationTime, timeOld, timeNew;
+volatile boolean magnetHit = false;
 unsigned long currentRotationTime,spinOld,spinNew = 0;
 
 // ===========
@@ -171,13 +172,14 @@ void setup() {
   timeNew = micros();
   timeOld = timeNew;
   //Hall sensor doesn't work - skip for now
-  //attachInterrupt(digitalPinToInterrupt(HALLPIN), magnetPresent, FALLING);
+  attachInterrupt(digitalPinToInterrupt(HALLPIN), magnetPresent, FALLING);
 }
 
 IRAM_ATTR void magnetPresent() {
   timeNew = micros();
   rotationTime = timeNew - timeOld;
   timeOld = timeNew;
+  magnetHit = true; //Flag that the magnet is hit, so rotor should be 60 (bottom of picture)
 }
 
 void loop() {
@@ -194,9 +196,14 @@ void loop() {
     spinNew = micros();
     if ((spinNew-spinOld)*RESOLUTION>currentRotationTime) {
       spinOld = spinNew;
-      rotor++;
-      if (rotor==RESOLUTION) {
-        rotor=0;
+      if (magnetHit) {
+        magnetHit = false;
+        rotor = 30;
+      } else {
+        rotor++;
+        if (rotor==RESOLUTION) {
+          rotor=0;
+        }
       }
       updateLEDs();
     }
