@@ -57,6 +57,11 @@ volatile unsigned long rotationTime, timeOld, timeNew;
 volatile boolean magnetHit = false;
 unsigned long currentRotationTime,spinOld,spinNew = 0;
 
+unsigned long lastShowTime = 0;
+unsigned long showInterval = 10000; // 10 seconds interval between slides
+boolean slideshow = false;
+int slideCount = 1; //Only one slide (file name "0") as default value, can be changed by operation "d"
+
 // ===========
 // BLE stuff
 // ===========
@@ -103,6 +108,27 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             }
           } else {
             switch (rxValue[0]) {
+              case 100:
+                //Operation "d": start slideshow
+                if (rxValue.length()>1) {
+                  //Sets the number of slides - if nothing is given, current (default) value is used
+                  slideCount = std::stoi(rxValue.substr(2));
+                }
+                slideshow = true;
+                sendText("slideshow started");
+                break;
+              case 101:
+                //Operation "e": end slideshow
+                slideshow = false;
+                sendText("slideshow stopped");
+                break;
+              case 116:
+                //Operation "t": Set slide show interval in seconds
+                if (rxValue.length()>1) {
+                  showInterval = 1000 * std::stoi(rxValue.substr(2));
+                  sendText("interval set");
+                }
+                break;
               case 115:
                 //Operation "s": Save file to flash
                 if (filesReady && (rxValue.length()>1)) {
@@ -137,6 +163,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
                     }
                     file.close();
                     sendText("loaded");
+                    imgLoaded = true;
                   }
                 }
                 break;

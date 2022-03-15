@@ -62,3 +62,15 @@ Haven't measured the rotation speed of the fan yet. Typical 3-speed table fans r
 We seem to have some power issues when the ESP32 is starting up and the light and hall sensor are also receiving power (which is not necessary at that point).  We will use a MOSFET IRLZ44N to switch off the leds during startup. The MOSFET needs around 2.0V to completely turn on. To make this work, the load should be on the Drain-pin of the MOSFET, putting the MOSFET between the load and ground.
 
 Strangely enough the APA102 seems to connect to ground via the data/clock pins so we also need to turn of the level shifter. This is quite easy, as we can use the same signal for the MOSFET and the level shifter Output-enable pins.
+
+## Operations
+
+The app can be used to send an image to the ESP32. Some commands can be send to the ESP32:
+
+- "d5": start slideshow, the number represents the number of slides (in this case 5 slides). Filenames should be "0", "1", "2", "3", "4".
+- "e": stop slideshow, the current image will remain
+- "r<filename>": read a file from storage. The text after "r" is the filename that is read
+- "s<filename>": save a file to storage. The text after "s" is the filname that is saved
+- "t5": the interval in seconds between slides, in this case 5 seconds between slides.
+
+Technically, it should be possible to create video files: retrieving images per rotation from the flash storage, haven't implement that yet...
