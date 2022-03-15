@@ -8,6 +8,13 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
+//SPI File system
+#include <FS.h>
+#include <SPIFFS.h>
+
+//Set to false after first time
+#define FORMAT_SPIFFS_IF_FAILED false
+
 //Using the most commonly used UART service for BLE
 #define SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E" // UART service UUID
 #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
@@ -43,6 +50,8 @@ byte rotor = 0;
 boolean doOnce = true;
 boolean imgLoaded = false;
 boolean imgLoading = false;
+
+boolean filesReady = false;
 
 volatile unsigned long rotationTime, timeOld, timeNew;
 volatile boolean magnetHit = false;
@@ -93,13 +102,55 @@ class MyCallbacks: public BLECharacteristicCallbacks {
               imgLoading = false;
             }
           } else {
-            //Something else - we can put control instructions in this part
-            long number = std::stoi(rxValue);
-            if (number>0) {
-              rotationTime = 1000*number;
+            switch (rxValue[0]) {
+              case 115:
+                //Operation "s": Save file to flash
+                if (filesReady && (rxValue.length()>1)) {
+                  rxValue[0] = 47; //Forward slash, so making rxValue a real filename
+                  File file = SPIFFS.open(rxValue.c_str(),FILE_WRITE);
+                  if (file) {
+                    for (int i = 0; i < RESOLUTION; i++) {
+                      for (int j = 0; j < BUFLENGTH; j++) {
+                        file.write(buffer[i][j]);
+                      }
+                    }
+                    file.close();
+                    sendText("saved");
+                  }
+                }
+                break;
+              case 114:
+                //Operation "r": Read file from flash
+                if (filesReady && (rxValue.length()>1)) {
+                  rxValue[0] = 47; //Forward slash, so making rxValue a real filename
+                  File file = SPIFFS.open(rxValue.c_str());
+                  if (file) {
+                    for (int i = 0; i < RESOLUTION; i++) {
+                      for (int j = 0; j < BUFLENGTH; j++) {
+                        if (file.available()) {
+                          buffer[i][j] = file.read();
+                        } else {
+                          //Failsafe: should not occur, but if file is to small - add zeros
+                          buffer[i][j]= 0;
+                        }
+                      }
+                    }
+                    file.close();
+                    sendText("loaded");
+                  }
+                }
+                break;
             }
           }
         }
+      }
+    }
+
+    void sendText(std::string text) {
+      if (deviceConnected) {
+        pTxCharacteristic->setValue(text);
+        pTxCharacteristic->notify();
+        delay(10);
       }
     }
 
@@ -168,6 +219,9 @@ void setup() {
   buffer[0][8] = 255;
 
   setupBLE();
+
+  //Initialize SPIFFS
+  filesReady = SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED);
 
   timeNew = micros();
   timeOld = timeNew;
