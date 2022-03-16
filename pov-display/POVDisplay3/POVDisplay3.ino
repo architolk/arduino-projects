@@ -114,30 +114,31 @@ class MyCallbacks: public BLECharacteristicCallbacks {
               case 98:
                 //Operation "b": set brightness. Setting brightness to zero means: LEDs are off!
                 if (rxValue.length()>1) {
-                  brightness = std::stoi(rxValue.substr(2));
-                  sendText("brightness set");
+                  brightness = std::stoi(rxValue.substr(1));
+                  sendText("brightness set\n");
                 }
+                break;
               case 100:
                 //Operation "d": start slideshow
                 if (rxValue.length()>1) {
                   //Sets the number of slides - if nothing is given, current (default) value is used
-                  slideCount = std::stoi(rxValue.substr(2));
+                  slideCount = std::stoi(rxValue.substr(1));
                 }
-                slideshow = true;
                 currentSlide = 1;
                 lastShowTime = 0; //Force loading of first slide
-                sendText("slideshow started");
+                slideshow = true;
+                sendText("slideshow started\n");
                 break;
               case 101:
                 //Operation "e": end slideshow
                 slideshow = false;
-                sendText("slideshow stopped");
+                sendText("slideshow stopped\n");
                 break;
               case 116:
                 //Operation "t": Set slide show interval in seconds
                 if (rxValue.length()>1) {
-                  showInterval = 1000 * std::stoi(rxValue.substr(2));
-                  sendText("interval set");
+                  showInterval = 1000 * std::stoi(rxValue.substr(1));
+                  sendText("interval set\n");
                 }
                 break;
               case 115:
@@ -152,7 +153,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
                       }
                     }
                     file.close();
-                    sendText("saved");
+                    sendText("saved\n");
                   }
                 }
                 break;
@@ -160,21 +161,26 @@ class MyCallbacks: public BLECharacteristicCallbacks {
                 //Operation "r": Read file from flash
                 if (filesReady && (rxValue.length()>1)) {
                   rxValue[0] = 47; //Forward slash, so making rxValue a real filename
-                  File file = SPIFFS.open(rxValue.c_str());
-                  if (file) {
-                    for (int i = 0; i < RESOLUTION; i++) {
-                      for (int j = 0; j < BUFLENGTH; j++) {
-                        if (file.available()) {
-                          buffer[i][j] = file.read();
-                        } else {
-                          //Failsafe: should not occur, but if file is to small - add zeros
-                          buffer[i][j]= 0;
+                  if (SPIFFS.exists(rxValue.c_str())) {
+                    //Serial.println("Open file: [" + String(rxValue.c_str()) + "]");
+                    File file = SPIFFS.open(rxValue.c_str());
+                    if (file) {
+                      for (int i = 0; i < RESOLUTION; i++) {
+                        for (int j = 0; j < BUFLENGTH; j++) {
+                          if (file.available()) {
+                            buffer[i][j] = file.read();
+                          } else {
+                            //Failsafe: should not occur, but if file is to small - add zeros
+                            buffer[i][j]= 0;
+                          }
                         }
                       }
+                      file.close();
+                      sendText("loaded\n");
+                      imgLoaded = true;
                     }
-                    file.close();
-                    sendText("loaded");
-                    imgLoaded = true;
+                  } else {
+                    sendText("file doesn't exists\n");
                   }
                 }
                 break;
@@ -246,6 +252,9 @@ void setup() {
   //pinMode(LEDPIN, OUTPUT);
   pinMode(HALLPIN, INPUT_PULLUP);
 
+  //Initialize serial for debug
+  //Serial.begin(115200);
+
   //set rotation time to 0.28 second (429 lines per second)
   rotationTime = 280000;
 
@@ -263,7 +272,6 @@ void setup() {
 
   timeNew = micros();
   timeOld = timeNew;
-  //Hall sensor doesn't work - skip for now
   attachInterrupt(digitalPinToInterrupt(HALLPIN), magnetPresent, FALLING);
 }
 
@@ -315,25 +323,28 @@ void loop() {
       oldDeviceConnected = deviceConnected;
   }
   if (slideshow) {
-    unsigned long showtime = milli();
-    if (showtime - lastShowTime) > showInterval) {
+    unsigned long showtime = millis();
+    if ((showtime - lastShowTime) > showInterval) {
       lastShowTime = showtime;
       //Load new image (TODO: copy of function - redundant code)
       String filename = "/" + String(currentSlide);
-      File file = SPIFFS.open(filename);
-      if (file) {
-        for (int i = 0; i < RESOLUTION; i++) {
-          for (int j = 0; j < BUFLENGTH; j++) {
-            if (file.available()) {
-              buffer[i][j] = file.read();
-            } else {
-              //Failsafe: should not occur, but if file is to small - add zeros
-              buffer[i][j]= 0;
+      if (SPIFFS.exists(filename)) {
+        //Serial.println("Open file: [" + filename + "]");
+        File file = SPIFFS.open(filename);
+        if (file) {
+          for (int i = 0; i < RESOLUTION; i++) {
+            for (int j = 0; j < BUFLENGTH; j++) {
+              if (file.available()) {
+                buffer[i][j] = file.read();
+              } else {
+                //Failsafe: should not occur, but if file is to small - add zeros
+                buffer[i][j]= 0;
+              }
             }
           }
+          file.close();
+          imgLoaded = true;
         }
-        file.close();
-        imgLoaded = true;
       }
       //Select next image and rotate
       currentSlide++;
