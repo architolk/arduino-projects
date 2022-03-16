@@ -37,6 +37,8 @@
 #define RESOLUTION 120
 byte buffer[RESOLUTION][BUFLENGTH];
 
+byte brightness = BRIGHTNESS;
+
 SPIClass ledSPI(HSPI);
 
 // BLE global variables
@@ -60,7 +62,8 @@ unsigned long currentRotationTime,spinOld,spinNew = 0;
 unsigned long lastShowTime = 0;
 unsigned long showInterval = 10000; // 10 seconds interval between slides
 boolean slideshow = false;
-int slideCount = 1; //Only one slide (file name "0") as default value, can be changed by operation "d"
+int slideCount = 1; //Only one slide (file name "1") as default value, can be changed by operation "d"
+int currentSlide = 1;
 
 // ===========
 // BLE stuff
@@ -108,6 +111,12 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             }
           } else {
             switch (rxValue[0]) {
+              case 98:
+                //Operation "b": set brightness. Setting brightness to zero means: LEDs are off!
+                if (rxValue.length()>1) {
+                  brightness = std::stoi(rxValue.substr(2));
+                  sendText("brightness set");
+                }
               case 100:
                 //Operation "d": start slideshow
                 if (rxValue.length()>1) {
@@ -115,6 +124,8 @@ class MyCallbacks: public BLECharacteristicCallbacks {
                   slideCount = std::stoi(rxValue.substr(2));
                 }
                 slideshow = true;
+                currentSlide = 1;
+                lastShowTime = 0; //Force loading of first slide
                 sendText("slideshow started");
                 break;
               case 101:
@@ -303,6 +314,34 @@ void loop() {
   // do stuff here on connecting
       oldDeviceConnected = deviceConnected;
   }
+  if (slideshow) {
+    unsigned long showtime = milli();
+    if (showtime - lastShowTime) > showInterval) {
+      lastShowTime = showtime;
+      //Load new image (TODO: copy of function - redundant code)
+      String filename = "/" + String(currentSlide);
+      File file = SPIFFS.open(filename);
+      if (file) {
+        for (int i = 0; i < RESOLUTION; i++) {
+          for (int j = 0; j < BUFLENGTH; j++) {
+            if (file.available()) {
+              buffer[i][j] = file.read();
+            } else {
+              //Failsafe: should not occur, but if file is to small - add zeros
+              buffer[i][j]= 0;
+            }
+          }
+        }
+        file.close();
+        imgLoaded = true;
+      }
+      //Select next image and rotate
+      currentSlide++;
+      if (currentSlide>slideCount) {
+        currentSlide = 1;
+      }
+    }
+  }
 }
 
 void updateLEDs() {
@@ -313,7 +352,7 @@ void updateLEDs() {
   ledSPI.write(0x00);
   ledSPI.write(0x00);
   for (uint8_t i = 0; i<LEDS; i++) {
-    ledSPI.write(0xE0 + BRIGHTNESS);
+    ledSPI.write(0xE0 + brightness);
     //Buffer contains colors as RGB, the APA102 expects BGR
     ledSPI.write(buffer[rotor][i*3+2]); //Blue
     ledSPI.write(buffer[rotor][i*3+1]); //Green
