@@ -86,4 +86,6 @@ Routing of the pins:
 
 Merk op: alle pinnen zijn nodig, dus seriele communciatie werkt dan niet meer...
 
-De 7 output pins krijgen een current limiting weerstand, zodat we zeker weten dat er niet te veel stroom gaat lopen tussen de output en input pins (10k moet kunnen volgens bepaalde sites, da's 0.33mA stroomverbruik - lekker weinig)
+De 7 output pins krijgen een current limiting weerstand, zodat we zeker weten dat er niet te veel stroom gaat lopen tussen de output en input pins (10k werkt niet goed als er 2 inputs gebruikt worden. Met 1k werkt het wel goed (=3.3mA)).
+
+GPIO36, GPIO39, GPIO34 en GPIO35 hebben geen interne pull down weerstanden, dus deze moeten extern erbij worden geplaatst.

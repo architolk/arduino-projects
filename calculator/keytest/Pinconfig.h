@@ -36,8 +36,12 @@
 #define PIN_SWCHECK4 3 // Pin 4
 */
 // Om de serial communicatie mogelijk te houden (!)
-#define PIN_KEYPROBE4 22 // Pin 11 - tijdelijk voor testdoeleinden
+#define PIN_KEYPROBE4 21 // Pin 11 - tijdelijk voor testdoeleinden - SWPROBE3 and KEYPROBE4 double in this scenario
 #define PIN_SWCHECK4 25 // Pin 4 - tijdelijk voor testdoeleinden
+
+struct KeyRaw {
+	int key1,key2,key3,key4;
+};
 
 class PINCONFIG {
   public:
@@ -49,6 +53,11 @@ class PINCONFIG {
     int testItem();
     bool testPrint();
     bool testAM();
+    bool testKeys(KeyRaw &keys);
+    bool testKeysDelay(int delayTime, KeyRaw &keys);
+
+	private:
+		int PINCONFIG::testKeyRow();
 };
 
 extern PINCONFIG Pinconfig;
