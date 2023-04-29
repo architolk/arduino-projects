@@ -57,7 +57,7 @@ class PINCONFIG {
     bool testKeysDelay(int delayTime, KeyRaw &keys);
 
 	private:
-		int PINCONFIG::testKeyRow();
+		int testKeyRow();
 };
 
 extern PINCONFIG Pinconfig;

@@ -125,12 +125,12 @@ bool PINCONFIG::testAM() {
 int PINCONFIG::testKeyRow() {
   //Creates a bitwise number for the keys pressed in the columns for that row
   int keys = digitalRead(PIN_KEYCHECK1) << 1;
-  keys += digitalRead(PIN_KEYCHECK2); keys << 1;
-  keys += digitalRead(PIN_KEYCHECK3); keys << 1;
-  keys += digitalRead(PIN_KEYCHECK4); keys << 1;
-  keys += digitalRead(PIN_KEYCHECK5); keys << 1;
-  keys += digitalRead(PIN_KEYCHECK6); keys << 1;
-  keys += digitalRead(PIN_KEYCHECK7); keys << 1;
+  keys += digitalRead(PIN_KEYCHECK2); keys = keys << 1;
+  keys += digitalRead(PIN_KEYCHECK3); keys = keys << 1;
+  keys += digitalRead(PIN_KEYCHECK4); keys = keys << 1;
+  keys += digitalRead(PIN_KEYCHECK5); keys = keys << 1;
+  keys += digitalRead(PIN_KEYCHECK6); keys = keys << 1;
+  keys += digitalRead(PIN_KEYCHECK7); keys = keys << 1;
   keys += digitalRead(PIN_KEYCHECK8);
   return keys;
 }
