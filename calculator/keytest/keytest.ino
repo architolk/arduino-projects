@@ -5,6 +5,8 @@ void setup() {
   pinMode(PIN_LED,OUTPUT);
   digitalWrite(PIN_LED,LOW);
   Serial.begin(9600); //For testing only
+  Serial.println("=============================");
+  Serial.println("Start testing...");
 }
 
 //Current example requires:
@@ -22,5 +24,5 @@ void loop() {
   Serial.println(".");
   delay(1000);
   digitalWrite(PIN_LED,LOW);
-  delay(4000); //Wait 4 seconds
+  delay(1000); //Wait 4 seconds
 }
