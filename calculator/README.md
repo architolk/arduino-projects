@@ -5,6 +5,8 @@ A project to convert an old calculator into something new:
 - Using a ESP32 processor
 - Using a VFD display that can display characters, not only numbers.
 
+The VFD is the one described [here](https://github.com/qrti/VFD-HCS-12SS59T), we used part of the code to make the VFD work. The code is pretty basic and doesn't use all the features the VFD has. A more elaborate version can be found [here](https://github.com/m42uko/hcs12ss59t) (not tested yet).
+
 # Power from the original calculator
 
 We use the power from the original calculator:
@@ -51,3 +53,10 @@ Only difference with the previous circuit, is the replacement of the BC337 with 
 We can use the 22.7V for the 5V circuit, by using a lineair 7805 regulator. The problem is - again - that we need to dissipate a lot of power. The ESP32 consumes (according to the datasheet) less than 100mA of current in normal operation, with WiFi this can increase to arround 300mA. The datasheet recomments a power supply of 500mA. 300mA with a voltage drop of 17.7 means 5.31W, 500mA means 8.85W (and the latter will make the TIP120 pretty hot as well).
 
 Using a heatsink, we can probably get away with the power dissipation, as long as the ESP32 doesn't take that much current the whole time. Another solution might be to include a LM2596 step down buck converter. This converter has a maximum input voltage of 40V, so we can directly connect this to the 34V input, and not load the TIP120. In such a case, the TIP120 would only handle the VFD, and we don't have to use a heatsink. We don't need exactly 5V (a bit more or little is acceptable), as the devboard of the ESP32 contains a 3.3V regulator.
+
+# Switching the Vdisp of the VFD
+According to the [datasheet](http://www.lapis-semi.com/en/data/datasheet-file_db/display/FEDL9289-01.pdf) of the VFD microprocessor, the microprocessor needs to be turned on *before* power is supplied to the VFD, Vdisp need to be turned off at first. This is handled by the code, but we need a circuit that can switch the high voltage with the low voltage of the ESP32 (or Arduino for that matter). Vdisp will be around 24V!
+
+Normally, we use low-side switching with a NPN transistor (the transistor will disconnect ground from the load, the load is at the positive (NPN-collector) side of the transistor). But we must use high-side switching in this case, because the load will stay connected to ground (the VFD has a common ground for Vcc and Vdisp), so we need to switch the positive voltage, e.g. at the negative side of the transistor. This means: using a PNP transistor (the load will be at the negative, PNP-collector side of the transistor). As stated in [low side vs high side transistor switch](https://www.baldengineer.com/low-side-vs-high-side-transistor-switch.html), the PNP will be at 24V, which is way to much for the ESP32 to handle. To work around this problem, we use another NPN transistor in the regular low-side switching position. The NPN will switch the PNP, and the PNP will switch the Vdisp.
+
+![](PNP-switching.svg)
