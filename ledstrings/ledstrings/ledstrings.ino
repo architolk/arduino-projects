@@ -1,62 +1,47 @@
-// Include the RTC library
-#include "RTC.h"
+/*
+ * LED Strings
+ *
+ * Application that does:
+ *
+ * - Fetching the time from an NTP server (ones a day)
+ * - Starting a webserver, to control the LEDS
+ * - controlling a WS2813 LED string
+ *
+ */
 
-//Include the NTP library
-#include <NTPClient.h>
+//Uncommit if you want to see serial messages
+#define SERIAL_ON
 
 #include <WiFiS3.h>
+#include "RTC.h"
+#include <NTPClient.h>
 
-#include <WiFiUdp.h>
+// Sensitive data in secrets.h
+#include "secrets.h"
+char ssid[] = SECRET_SSID;
+char pass[] = SECRET_PASS;
 
-#include "secrets.h" 
-///////please enter your sensitive data in the Secret tab/arduino_secrets.h
-char ssid[] = SECRET_SSID;        // your network SSID (name)
-char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
+int status = WL_IDLE_STATUS;
 
-int wifiStatus = WL_IDLE_STATUS;
 WiFiUDP Udp; // A UDP instance to let us send and receive packets over UDP
 NTPClient timeClient(Udp);
 
 WiFiServer server(80);
 
+boolean ledsOn = true;
+byte ledsStatus = LOW;
+
 time_t startTime;
+time_t connectTime;
 time_t currentTime;
 
-//Serial on or off
-#define SERIAL_ON 1
+void setup() {
+  resetLedTimer();
 
-int led =  LED_BUILTIN;
-
-#ifdef SERIAL_ON
-void printWifiStatus() {
-  // print the SSID of the network you're attached to:
-  Serial.print("SSID: ");
-  Serial.println(WiFi.SSID());
-
-  // print your board's IP address:
-  IPAddress ip = WiFi.localIP();
-  Serial.print("IP Address: ");
-  Serial.println(ip);
-
-  // print the received signal strength:
-  long rssi = WiFi.RSSI();
-  Serial.print("signal strength (RSSI):");
-  Serial.print(rssi);
-  Serial.println(" dBm");
-}
-#endif
-
-void connectToWiFi(){
-  // check for the WiFi module:
-  if (WiFi.status() == WL_NO_MODULE) {
-    #ifdef SERIAL_ON
-    Serial.println("Communication with WiFi module failed!");
-    #endif
-    // don't continue
-    while (true);
-  }
-
+  //Initialize serial and wait for port to open:
   #ifdef SERIAL_ON
+  Serial.begin(9600);
+
   String fv = WiFi.firmwareVersion();
   if (fv < WIFI_FIRMWARE_LATEST_VERSION) {
     Serial.println("Please upgrade the firmware");
@@ -64,41 +49,25 @@ void connectToWiFi(){
   #endif
 
   // attempt to connect to WiFi network:
-  while (wifiStatus != WL_CONNECTED) {
+  while (status != WL_CONNECTED) {
     #ifdef SERIAL_ON
     Serial.print("Attempting to connect to SSID: ");
     Serial.println(ssid);
     #endif
-    // Connect to WPA/WPA2 network.
-    wifiStatus = WiFi.begin(ssid, pass);
+    // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
+    status = WiFi.begin(ssid, pass);
 
     // wait 10 seconds for connection:
     delay(10000);
   }
 
-  #ifdef SERIAL_ON
-  Serial.println("Connected to WiFi");
-  printWifiStatus();
-  #endif
-}
-
-void setup(){
-  #ifdef SERIAL_ON
-  Serial.begin(9600);
-  while (!Serial);
-  #endif
-
-  connectToWiFi();
   RTC.begin();
   #ifdef SERIAL_ON
-  Serial.println("\nStarting connection to server...");
+  Serial.println("Retrieving time from NTP server");
   #endif
   timeClient.begin();
   timeClient.update();
 
-  // Get the current date and time from an NTP server and convert
-  // it to UTC +2 by passing the time zone offset in hours.
-  // You may change the time zone offset to your local one.
   auto timeZoneOffsetHours = 1;
   auto unixTime = timeClient.getEpochTime() + (timeZoneOffsetHours * 3600);
   #ifdef SERIAL_ON
@@ -115,79 +84,113 @@ void setup(){
   Serial.println("The RTC was just set to: " + String(currentTime));
   #endif
 
-  // Start the webserver
+  //Start the webserver
   server.begin();
   #ifdef SERIAL_ON
-  Serial.println("\nWebserver started at port 80");
+  printWifiStatus();
   #endif
-
-  resetLedTimer();
 }
 
-void checkWifiStatus() {
-  // compare the previous status to the current status
-  if (wifiStatus != WiFi.status()) {
-    // it has changed update the variable
-    wifiStatus = WiFi.status();
-  }
+void printWifiStatus() {
+  // print your board's IP address:
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+
+  // print the received signal strength:
+  Serial.print("signal strength (RSSI):");
+  Serial.print(WiFi.RSSI());
+  Serial.println(" dBm");
+
+  Serial.println("Webserver started, port 80");
 }
 
-void checkWifiClient() {
-  WiFiClient client = server.available();   // listen for incoming clients
+void sendHttpHeader(WiFiClient& client) {
+  // send the HTTP response
+  // send the HTTP response header
+  client.print(
+    "HTTP/1.1 200 OK\r\n"
+    "Content-Type: text/html\r\n"
+    "Connection: close\r\n"  // the connection will be closed after completion of the response
+    "\r\n");
+}
 
-  if (client) {                             // if you get a client,
+void sendHomepageBody(WiFiClient& client) {
+  // send the HTTP response body
+  client.print(F("<!DOCTYPE HTML>\r\n"));
+  client.print(F("<html>\r\n"));
+
+  RTCTime currentTime;
+  RTC.getTime(currentTime);
+  client.print(F("<p style=\"font-size:7vw;\">Time: "));
+  client.print(String(currentTime));
+  client.print(F("</p>\r\n"));
+
+  client.print(F("<p style=\"font-size:7vw;\">Click <a href=\"/H\">here</a> turn the LED on<br></p>\r\n"));
+  client.print(F("<p style=\"font-size:7vw;\">Click <a href=\"/L\">here</a> turn the LED off<br></p>\r\n"));
+
+  client.print(F("</html>\r\n"));
+}
+
+void checkWebClient() {
+  connectTime = millis();
+  // listen for incoming clients
+  WiFiClient client = server.available();
+
+  if (client) {
     #ifdef SERIAL_ON
-    Serial.println("new client");           // print a message out the serial port
+    Serial.println(F("New client"));
     #endif
-    String currentLine = "";                // make a String to hold incoming data from the client
-    while (client.connected()) {            // loop while the client's connected
-      delayMicroseconds(10);                // This is required for the Arduino Nano RP2040 Connect - otherwise it will loop so fast that SPI will never be served.
-      if (client.available()) {             // if there's bytes to read from the client,
-        char c = client.read();             // read a byte, then
+    // an http request ends with a blank line
+    bool currentLineIsBlank = true;
+
+    while (client.connected()) {
+      currentTime = millis();
+      if ((currentTime - connectTime) > 5000) {
         #ifdef SERIAL_ON
-        Serial.write(c);                    // print it out to the serial monitor
+        Serial.println("Connection timeout");
         #endif
-        if (c == '\n') {                    // if the byte is a newline character
+        client.stop();
+        return;
+      }
+      if (client.available()) {
+        String req = client.readStringUntil('\r');
+        client.readStringUntil('\n');
+        #ifdef SERIAL_ON
+        Serial.println(req);
+        #endif
+        connectTime = currentTime;
 
-          // if the current line is blank, you got two newline characters in a row.
-          // that's the end of the client HTTP request, so send a response:
-          if (currentLine.length() == 0) {
-            // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
-            // and a content-type so the client knows what's coming, then a blank line:
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-type:text/html");
-            client.println();
+        // if you've gotten to the end of the line (received a newline
+        // character) and the line is blank, the http request has ended,
+        // so you can send a reply
+        if (req.length()==0) {
+          #ifdef SERIAL_ON
+          Serial.println(F("Sending response"));
+          #endif
 
-            // the content of the HTTP response follows the header:
-            client.print("<p style=\"font-size:7vw;\">Click <a href=\"/H\">here</a> turn the LED on<br></p>");
-            client.print("<p style=\"font-size:7vw;\">Click <a href=\"/L\">here</a> turn the LED off<br></p>");
+          sendHttpHeader(client);
+          sendHomepageBody(client);
 
-            // The HTTP response ends with another blank line:
-            client.println();
-            // break out of the while loop:
-            break;
+          break;
+        } else {
+          //Handle request
+          if (req.startsWith("GET /H")) {
+            ledsOn = true;
           }
-          else {      // if you got a newline, then clear currentLine:
-            currentLine = "";
+          if (req.startsWith("GET /L")) {
+            ledsOn = false;
           }
-        }
-        else if (c != '\r') {    // if you got anything else but a carriage return character,
-          currentLine += c;      // add it to the end of the currentLine
-        }
-
-        // Check to see if the client request was "GET /H" or "GET /L":
-        if (currentLine.endsWith("GET /H")) {
-          digitalWrite(led, HIGH);               // GET /H turns the LED on
-        }
-        if (currentLine.endsWith("GET /L")) {
-          digitalWrite(led, LOW);                // GET /L turns the LED off
         }
       }
     }
+
+    // give the web browser time to receive the data
+    delay(10);
+
     // close the connection:
     client.stop();
     #ifdef SERIAL_ON
-    Serial.println("client disconnected");
+    Serial.println(F("Client disconnected"));
     #endif
   }
 }
@@ -198,18 +201,18 @@ void resetLedTimer() {
 
 void checkLedStrings() {
   currentTime = millis();
-  if ((currentTime - startTime) > 5000) {
-    #ifdef SERIAL_ON
-    Serial.println("Timer!");
-    #endif
+  if ((currentTime - startTime) > 500) {
+    ledsStatus = !ledsStatus;
+    if (ledsOn) {
+      digitalWrite(LED_BUILTIN,ledsStatus);
+    } else {
+      digitalWrite(LED_BUILTIN,LOW);
+    }
     resetLedTimer();
   }
 }
 
 void loop() {
-
-  checkWifiStatus();
-  checkWifiClient();
+  checkWebClient();
   checkLedStrings();
-
 }
