@@ -15,6 +15,7 @@
 #include <WiFiS3.h>
 #include "RTC.h"
 #include <NTPClient.h>
+#include <SunRise.h>
 
 // Sensitive data in secrets.h
 #include "secrets.h"
@@ -68,8 +69,10 @@ void setup() {
   timeClient.begin();
   timeClient.update();
 
-  auto timeZoneOffsetHours = 1;
-  auto unixTime = timeClient.getEpochTime() + (timeZoneOffsetHours * 3600);
+  int timeZoneOffsetHours = 1;
+  time_t utcTime = timeClient.getEpochTime();
+  time_t unixTime = utcTime + (timeZoneOffsetHours * 3600);
+
   #ifdef SERIAL_ON
   Serial.print("Unix time = ");
   Serial.println(unixTime);
@@ -82,6 +85,15 @@ void setup() {
   RTC.getTime(currentTime);
   #ifdef SERIAL_ON
   Serial.println("The RTC was just set to: " + String(currentTime));
+  #endif
+
+  SunRise sr;
+  sr.calculate(52.155170, 5.387200, utcTime);
+  RTCTime riseTime = RTCTime(sr.riseTime + (timeZoneOffsetHours * 3600));
+  RTCTime setTime = RTCTime(sr.setTime + (timeZoneOffsetHours * 3600));
+  #ifdef SERIAL_ON
+  Serial.println("Sunrise at: " + String(riseTime));
+  Serial.println("Sunset at: " + String(setTime));
   #endif
 
   //Start the webserver
