@@ -36,6 +36,17 @@ time_t startTime;
 time_t connectTime;
 time_t currentTime;
 
+// We've got three states:
+// 1. Leds on: when the sun has set and it's before the sleep time OR when its after the wake up time
+// 2. Leds dimmed: when the sun has set and it's after the sleep time and before the wake up time
+// 3. Leds off: when the sun has risen
+#define LEDS_ON 1
+#define LEDS_DIMMED 2
+#define LEDS_OFF 0
+int sleepTime = 23*60 + 0; //Time to switch off all lights
+int wakeupTime = 7*60 + 30; //Time to switch on the lights
+byte ledStatus = LEDS_OFF;
+
 void setup() {
   resetLedTimer();
 
@@ -94,6 +105,26 @@ void setup() {
   #ifdef SERIAL_ON
   Serial.println("Sunrise at: " + String(riseTime));
   Serial.println("Sunset at: " + String(setTime));
+  int currentMinutes = currentTime.getHour()*60+currentTime.getMinutes();
+  if (sr.isVisible) {
+    int dawnMinutes = setTime.getHour()*60+setTime.getMinutes()-60; //Sixty minutes before sunset is considered dawn
+    if (currentMinutes>=dawnMinutes) {
+      Serial.println("It's dawn - Leds are on");
+      ledStatus = LEDS_ON;
+    } else {
+      Serial.println("It's daytime (sun has risen)");
+      ledStatus = LEDS_OFF;
+    }
+  } else {
+    Serial.println("It's night (sun has set)");
+    if ((currentMinutes>=sleepTime) || (currentMinutes<wakeupTime)) {
+      Serial.println("Time to sleep - Leds are dimmed");
+      ledStatus = LEDS_DIMMED;
+    } else {
+      Serial.println("It's dark - Leds are on");
+      ledStatus = LEDS_ON;
+    }
+  }
   #endif
 
   //Start the webserver
