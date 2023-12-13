@@ -10,7 +10,7 @@
  */
 
 //Uncommit if you want to see serial messages
-#define SERIAL_ON
+//#define SERIAL_ON
 
 #include <WiFiS3.h>
 #include "RTC.h"
@@ -167,6 +167,9 @@ void setup() {
   printWifiStatus();
   #endif
 
+  //Setup for the LEDs (init of FastLED etc)
+  setupLEDs();
+
   resetLedTimer();
   resetStatusUpdateTimer();
 }
@@ -283,7 +286,7 @@ void resetStatusUpdateTimer() {
   statusUpdateTime = millis();
 }
 
-void checkLedStrings() {
+void checkInternalLed() {
   currentTime = millis();
   if ((currentTime - startTime) > 500) {
     ledsStatus = !ledsStatus;
@@ -307,6 +310,7 @@ void checkStatusUpdate() {
 
 void loop() {
   checkWebClient();
-  checkLedStrings();
+  checkInternalLed();
   checkStatusUpdate();
+  checkLedString();
 }
