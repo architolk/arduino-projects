@@ -24,6 +24,7 @@ char pass[] = SECRET_PASS;
 
 int status = WL_IDLE_STATUS;
 
+int timeZoneOffsetHours = 1;
 WiFiUDP Udp; // A UDP instance to let us send and receive packets over UDP
 NTPClient timeClient(Udp);
 
@@ -33,6 +34,7 @@ boolean ledsOn = true;
 byte ledsStatus = LOW;
 
 time_t startTime;
+time_t statusUpdateTime;
 time_t connectTime;
 time_t currentTime;
 
@@ -40,20 +42,16 @@ time_t currentTime;
 // 1. Leds on: when the sun has set and it's before the sleep time OR when its after the wake up time
 // 2. Leds dimmed: when the sun has set and it's after the sleep time and before the wake up time
 // 3. Leds off: when the sun has risen
-#define LEDS_ON 1
-#define LEDS_DIMMED 2
+#define LEDS_DIMMED 1
+#define LEDS_ON_DAWN 2
+#define LEDS_ON 3
 #define LEDS_OFF 0
 int sleepTime = 23*60 + 0; //Time to switch off all lights
 int wakeupTime = 7*60 + 30; //Time to switch on the lights
-byte ledStatus = LEDS_OFF;
+byte ledStatus = LEDS_ON;
 
-void setup() {
-  resetLedTimer();
-
-  //Initialize serial and wait for port to open:
+void setupWiFi() {
   #ifdef SERIAL_ON
-  Serial.begin(9600);
-
   String fv = WiFi.firmwareVersion();
   if (fv < WIFI_FIRMWARE_LATEST_VERSION) {
     Serial.println("Please upgrade the firmware");
@@ -72,15 +70,15 @@ void setup() {
     // wait 10 seconds for connection:
     delay(10000);
   }
+}
 
-  RTC.begin();
+void getNetworkTime() {
   #ifdef SERIAL_ON
   Serial.println("Retrieving time from NTP server");
   #endif
   timeClient.begin();
   timeClient.update();
 
-  int timeZoneOffsetHours = 1;
   time_t utcTime = timeClient.getEpochTime();
   time_t unixTime = utcTime + (timeZoneOffsetHours * 3600);
 
@@ -98,6 +96,13 @@ void setup() {
   Serial.println("The RTC was just set to: " + String(currentTime));
   #endif
 
+  timeClient.end(); //End the timeclient, as we will only call this routine ones a day
+}
+
+void updateLedStatus() {
+  RTCTime currentTime;
+  RTC.getTime(currentTime);
+  time_t utcTime = currentTime.getUnixTime() - (timeZoneOffsetHours * 3600); //We want UTC, so we need tot go back in time...
   SunRise sr;
   sr.calculate(52.155170, 5.387200, utcTime);
   RTCTime riseTime = RTCTime(sr.riseTime + (timeZoneOffsetHours * 3600));
@@ -105,33 +110,65 @@ void setup() {
   #ifdef SERIAL_ON
   Serial.println("Sunrise at: " + String(riseTime));
   Serial.println("Sunset at: " + String(setTime));
+  #endif
   int currentMinutes = currentTime.getHour()*60+currentTime.getMinutes();
   if (sr.isVisible) {
     int dawnMinutes = setTime.getHour()*60+setTime.getMinutes()-60; //Sixty minutes before sunset is considered dawn
     if (currentMinutes>=dawnMinutes) {
+      #ifdef SERIAL_ON
       Serial.println("It's dawn - Leds are on");
-      ledStatus = LEDS_ON;
+      #endif
+      ledStatus = LEDS_ON_DAWN;
     } else {
+      #ifdef SERIAL_ON
       Serial.println("It's daytime (sun has risen)");
+      #endif
       ledStatus = LEDS_OFF;
     }
   } else {
     Serial.println("It's night (sun has set)");
     if ((currentMinutes>=sleepTime) || (currentMinutes<wakeupTime)) {
+      #ifdef SERIAL_ON
       Serial.println("Time to sleep - Leds are dimmed");
+      #endif
       ledStatus = LEDS_DIMMED;
     } else {
+      #ifdef SERIAL_ON
       Serial.println("It's dark - Leds are on");
+      #endif
+      if (ledStatus!=LEDS_ON) {
+        //ledStatus has changed, so we need to update the RTC via the network
+        //This might result in another change, but as LEDS_ON and LEDS_ON_DAWN are actually the same, this will not happen
+        getNetworkTime();
+      }
       ledStatus = LEDS_ON;
     }
   }
+}
+
+void setup() {
+  //Initialize serial and wait for port to open:
+  #ifdef SERIAL_ON
+  Serial.begin(9600);
   #endif
+
+  setupWiFi();
+
+  RTC.begin(); //Start the real time clock
+  getNetworkTime();
+
+  updateLedStatus();
 
   //Start the webserver
   server.begin();
+
+  //Print some status info
   #ifdef SERIAL_ON
   printWifiStatus();
   #endif
+
+  resetLedTimer();
+  resetStatusUpdateTimer();
 }
 
 void printWifiStatus() {
@@ -242,6 +279,10 @@ void resetLedTimer() {
   startTime = millis();
 }
 
+void resetStatusUpdateTimer() {
+  statusUpdateTime = millis();
+}
+
 void checkLedStrings() {
   currentTime = millis();
   if ((currentTime - startTime) > 500) {
@@ -255,7 +296,17 @@ void checkLedStrings() {
   }
 }
 
+//Ones every minute, the LED status will be updated to the current situation
+void checkStatusUpdate() {
+  currentTime = millis();
+  if ((currentTime - statusUpdateTime) > 60000) {
+    updateLedStatus();
+    resetStatusUpdateTimer();
+  }
+}
+
 void loop() {
   checkWebClient();
   checkLedStrings();
+  checkStatusUpdate();
 }
