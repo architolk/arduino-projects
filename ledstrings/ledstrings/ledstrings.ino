@@ -7,6 +7,10 @@
  * - Starting a webserver, to control the LEDS
  * - controlling a WS2813 LED string
  *
+ * REMARK
+ * Using the Arduino UNO R4 Wifi
+ * FastLED 3.6.0 doesn't work - you need the master branch
+ * AND you need https://github.com/FastLED/FastLED/pull/1554
  */
 
 //Uncommit if you want to see serial messages
