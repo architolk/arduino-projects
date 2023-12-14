@@ -33,14 +33,18 @@ WiFiUDP Udp; // A UDP instance to let us send and receive packets over UDP
 NTPClient timeClient(Udp);
 
 WiFiServer server(80);
+WiFiClient client;
 
 boolean ledsOn = true;
-byte ledsStatus = LOW;
+byte opsStatus = LOW;
 
 time_t startTime;
 time_t statusUpdateTime;
 time_t connectTime;
 time_t currentTime;
+
+RTCTime riseTime;
+RTCTime setTime;
 
 // We've got three states:
 // 1. Leds on: when the sun has set and it's before the sleep time OR when its after the wake up time
@@ -52,7 +56,27 @@ time_t currentTime;
 #define LEDS_OFF 0
 int sleepTime = 23*60 + 0; //Time to switch off all lights
 int wakeupTime = 7*60 + 30; //Time to switch on the lights
-byte ledStatus = LEDS_ON;
+int ledStatus = LEDS_ON;
+
+#define MODE_DISCRETE 1
+#define MODE_CHRISTMAS 2
+#define MODE_NL 3
+#define MODE_CHASER 4
+#define MODE_RAINBOW 5
+#define MODE_STAIRCASE 6
+int ledMode = MODE_DISCRETE;
+
+#define FACT_DARK 0
+#define FACT_NIGHT 1
+#define FACT_DAY 2
+#define FACT_DAWN 3
+int factStatus = FACT_DARK;
+
+const char STR_DARK[] PROGMEM = "It's dark";
+const char STR_NIGHT[] PROGMEM = "It's night, time to sleep";
+const char STR_DAY[] PROGMEM = "It's daytime (sun has risen)";
+const char STR_DAWN[] PROGMEM = "It's dawn";
+const char * const FACTSTR[4] = {STR_DARK,STR_NIGHT,STR_DAY,STR_DAWN};
 
 void setupWiFi() {
   #ifdef SERIAL_ON
@@ -109,8 +133,8 @@ void updateLedStatus() {
   time_t utcTime = currentTime.getUnixTime() - (timeZoneOffsetHours * 3600); //We want UTC, so we need tot go back in time...
   SunRise sr;
   sr.calculate(52.155170, 5.387200, utcTime);
-  RTCTime riseTime = RTCTime(sr.riseTime + (timeZoneOffsetHours * 3600));
-  RTCTime setTime = RTCTime(sr.setTime + (timeZoneOffsetHours * 3600));
+  riseTime = RTCTime(sr.riseTime + (timeZoneOffsetHours * 3600));
+  setTime = RTCTime(sr.setTime + (timeZoneOffsetHours * 3600));
   #ifdef SERIAL_ON
   Serial.println("Sunrise at: " + String(riseTime));
   Serial.println("Sunset at: " + String(setTime));
@@ -122,11 +146,13 @@ void updateLedStatus() {
       #ifdef SERIAL_ON
       Serial.println("It's dawn - Leds are on");
       #endif
+      factStatus = FACT_DAWN;
       ledStatus = LEDS_ON_DAWN;
     } else {
       #ifdef SERIAL_ON
       Serial.println("It's daytime (sun has risen)");
       #endif
+      factStatus = FACT_DAY;
       ledStatus = LEDS_OFF;
     }
   } else {
@@ -135,16 +161,18 @@ void updateLedStatus() {
       #ifdef SERIAL_ON
       Serial.println("Time to sleep - Leds are dimmed");
       #endif
+      factStatus = FACT_NIGHT;
       ledStatus = LEDS_DIMMED;
     } else {
       #ifdef SERIAL_ON
       Serial.println("It's dark - Leds are on");
       #endif
-      if (ledStatus!=LEDS_ON) {
+      if (factStatus!=FACT_DARK) {
         //ledStatus has changed, so we need to update the RTC via the network
         //This might result in another change, but as LEDS_ON and LEDS_ON_DAWN are actually the same, this will not happen
         getNetworkTime();
       }
+      factStatus = FACT_DARK;
       ledStatus = LEDS_ON;
     }
   }
@@ -191,7 +219,7 @@ void printWifiStatus() {
   Serial.println("Webserver started, port 80");
 }
 
-void sendHttpHeader(WiFiClient& client) {
+void sendHttpHeader() {
   // send the HTTP response
   // send the HTTP response header
   client.print(
@@ -201,27 +229,76 @@ void sendHttpHeader(WiFiClient& client) {
     "\r\n");
 }
 
-void sendHomepageBody(WiFiClient& client) {
+void printDiv(boolean close) {
+  if (close) {
+    client.print(F("</div>\r\n"));
+  }
+  client.print(F("<div class=\"mb-3\">"));
+}
+
+void printOption(char* name, char* label, int value, int current) {
+  client.print(F("<input type=\"radio\" class=\"btn-check\" name=\""));
+  client.print(name);
+  client.print(F("\" id=\""));
+  client.print(name); client.print(value);
+  client.print(F("\" value=\""));
+  client.print(value);
+  client.print("\"");
+  if (value==current) {
+    client.print(F(" checked"));
+  }
+  client.print(F("><label class=\"btn\" for=\""));
+  client.print(name); client.print(value);
+  client.print("\">");
+  client.print(label);
+  client.print(F("</label>"));
+}
+
+void sendHomepageBody() {
   // send the HTTP response body
   client.print(F("<!DOCTYPE HTML>\r\n"));
-  client.print(F("<html>\r\n"));
+  client.print(F("<html lang=\"en\" data-bs-theme=\"dark\">\r\n"));
+  client.print(F("<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"));
+  client.print(F("<title>LED string control</title>"));
+  client.print(F("<link href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css\" rel=\"stylesheet\" integrity=\"sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN\" crossorigin=\"anonymous\"></head>\r\n"));
+  client.print(F("<body><div class=\"container\">"));
 
   RTCTime currentTime;
   RTC.getTime(currentTime);
-  client.print(F("<p style=\"font-size:7vw;\">Time: "));
+
+  client.print(F("<h3><span class=\"badge\">"));
   client.print(String(currentTime));
-  client.print(F("</p>\r\n"));
+  client.print(F("</span></h3>"));
+  client.print(F("<h3><span class=\"badge\">&#x1F305; "));
+  client.print(String(riseTime).substring(11,16));
+  client.print(F("; &#x1F307; "));
+  client.print(String(setTime).substring(11,16));
+  client.print(F(" - "));
+  client.print(FACTSTR[factStatus]);
+  client.print(F("</span></h3>\r\n"));
 
-  client.print(F("<p style=\"font-size:7vw;\">Click <a href=\"/H\">here</a> turn the LED on<br></p>\r\n"));
-  client.print(F("<p style=\"font-size:7vw;\">Click <a href=\"/L\">here</a> turn the LED off<br></p>\r\n"));
-
-  client.print(F("</html>\r\n"));
+  client.print(F("<form>"));
+  printDiv(false);
+  printOption("status","LEDs on",LEDS_ON,ledStatus);
+  printOption("status","LEDs dimmed",LEDS_DIMMED,ledStatus);
+  printOption("status","LEDs off",LEDS_OFF,ledStatus);
+  printDiv(true);
+  printOption("mode","Discrete",MODE_DISCRETE,ledMode);
+  printOption("mode","Christmas",MODE_CHRISTMAS,ledMode);
+  printOption("mode","NL flag",MODE_NL,ledMode);
+  printOption("mode","Chaser",MODE_CHASER,ledMode);
+  printOption("mode","Rainbow",MODE_RAINBOW,ledMode);
+  printOption("mode","Staircase",MODE_STAIRCASE,ledMode);
+  printDiv(true);
+  client.print(F("<button type=\"submit\" class=\"btn btn-warning\">Submit</button>"));
+  client.print(F("<a href=\"/\" class=\"btn btn-info\" role=\"button\">Refresh</a>"));
+  client.print(F("</div></form></div></body></html>\r\n"));
 }
 
 void checkWebClient() {
   connectTime = millis();
   // listen for incoming clients
-  WiFiClient client = server.available();
+  client = server.available();
 
   if (client) {
     #ifdef SERIAL_ON
@@ -255,17 +332,23 @@ void checkWebClient() {
           Serial.println(F("Sending response"));
           #endif
 
-          sendHttpHeader(client);
-          sendHomepageBody(client);
+          sendHttpHeader();
+          sendHomepageBody();
 
           break;
         } else {
           //Handle request
-          if (req.startsWith("GET /H")) {
-            ledsOn = true;
-          }
-          if (req.startsWith("GET /L")) {
-            ledsOn = false;
+          if (req.startsWith("GET /?")) {
+            int pos = req.indexOf("status=");
+            if (pos>0) {
+              ledStatus = req.substring(pos+7,pos+8).toInt();
+              Serial.println(">>> Status: [" + req.substring(pos+7,pos+8) + "]");
+            }
+            pos = req.indexOf("mode=");
+            if (pos>0) {
+              ledMode = req.substring(pos+5,pos+6).toInt();
+              Serial.println(">>> Mode: [" + req.substring(pos+5,pos+6) + "]");
+            }
           }
         }
       }
@@ -293,9 +376,9 @@ void resetStatusUpdateTimer() {
 void checkInternalLed() {
   currentTime = millis();
   if ((currentTime - startTime) > 500) {
-    ledsStatus = !ledsStatus;
+    opsStatus = !opsStatus;
     if (ledsOn) {
-      digitalWrite(LED_BUILTIN,ledsStatus);
+      digitalWrite(LED_BUILTIN,opsStatus);
     } else {
       digitalWrite(LED_BUILTIN,LOW);
     }
