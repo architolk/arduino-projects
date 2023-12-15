@@ -46,16 +46,18 @@ time_t currentTime;
 RTCTime riseTime;
 RTCTime setTime;
 
+//Global default maxBrightness
+int maxBrightness = 100;
+
 // We've got three states:
 // 1. Leds on: when the sun has set and it's before the sleep time OR when its after the wake up time
 // 2. Leds dimmed: when the sun has set and it's after the sleep time and before the wake up time
 // 3. Leds off: when the sun has risen
 #define LEDS_DIMMED 1
-#define LEDS_ON_DAWN 2
 #define LEDS_ON 3
 #define LEDS_OFF 0
-int sleepTime = 23*60 + 0; //Time to switch off all lights
-int wakeupTime = 7*60 + 30; //Time to switch on the lights
+int sleepTime = 23*60 + 0; //Time to switch off all lights (23:00)
+int wakeupTime = 7*60 + 30; //Time to switch on the lights (7:30)
 int ledStatus = LEDS_ON;
 
 #define MODE_DISCRETE 1
@@ -73,8 +75,8 @@ int ledMode = MODE_DISCRETE;
 int factStatus = FACT_DARK;
 
 const char STR_DARK[] PROGMEM = "It's dark";
-const char STR_NIGHT[] PROGMEM = "It's night, time to sleep";
-const char STR_DAY[] PROGMEM = "It's daytime (sun has risen)";
+const char STR_NIGHT[] PROGMEM = "It's night";
+const char STR_DAY[] PROGMEM = "It's daytime";
 const char STR_DAWN[] PROGMEM = "It's dawn";
 const char * const FACTSTR[4] = {STR_DARK,STR_NIGHT,STR_DAY,STR_DAWN};
 
@@ -100,31 +102,52 @@ void setupWiFi() {
   }
 }
 
-void getNetworkTime() {
+void getNetworkTime(boolean initial) {
   #ifdef SERIAL_ON
   Serial.println("Retrieving time from NTP server");
   #endif
   timeClient.begin();
-  timeClient.update();
+  boolean succes = false;
+  if (initial) {
+    //Initialy we _need_ a correct time, so keep trying!
+    while (!timeClient.update()) {
+      delay(1000);
+      timeClient.forceUpdate();
+      #ifdef SERIAL_ON
+      Serial.println("Timeserver didn't respond - retry");
+      #endif
+    }
+    succes = true; //We won't get here, if we had no succes, so succes is implied
+  } else {
+    succes = timeClient.update();
+    #ifdef SERIAL_ON
+    if (!succes) {
+      Serial.println("Timeserver didn't respond - ignore");
+    }
+    #endif
+  }
 
-  time_t utcTime = timeClient.getEpochTime();
-  time_t unixTime = utcTime + (timeZoneOffsetHours * 3600);
+  //Time client might return false, (non-responding time server), so we just ignore that situation and continue with our original time...
+  if (succes) {
+    time_t utcTime = timeClient.getEpochTime();
+    time_t unixTime = utcTime + (timeZoneOffsetHours * 3600);
 
-  #ifdef SERIAL_ON
-  Serial.print("Unix time = ");
-  Serial.println(unixTime);
-  #endif
-  RTCTime timeToSet = RTCTime(unixTime);
-  RTC.setTime(timeToSet);
+    #ifdef SERIAL_ON
+    Serial.print("Unix time = ");
+    Serial.println(unixTime);
+    #endif
+    RTCTime timeToSet = RTCTime(unixTime);
+    RTC.setTime(timeToSet);
 
-  // Retrieve the date and time from the RTC and print them
-  RTCTime currentTime;
-  RTC.getTime(currentTime);
-  #ifdef SERIAL_ON
-  Serial.println("The RTC was just set to: " + String(currentTime));
-  #endif
+    // Retrieve the date and time from the RTC and print them
+    RTCTime currentTime;
+    RTC.getTime(currentTime);
+    #ifdef SERIAL_ON
+    Serial.println("The RTC was just set to: " + String(currentTime));
+    #endif
 
-  timeClient.end(); //End the timeclient, as we will only call this routine ones a day
+    timeClient.end(); //End the timeclient, as we will only call this routine ones a day
+  }
 }
 
 void updateLedStatus() {
@@ -146,14 +169,24 @@ void updateLedStatus() {
       #ifdef SERIAL_ON
       Serial.println("It's dawn - Leds are on");
       #endif
-      factStatus = FACT_DAWN;
-      ledStatus = LEDS_ON_DAWN;
+      if (factStatus!=FACT_DAWN) {
+        factStatus = FACT_DAWN;
+        if (ledStatus!=LEDS_ON) {
+          ledStatus = LEDS_ON;
+          initLEDs();
+        }
+      }
     } else {
       #ifdef SERIAL_ON
       Serial.println("It's daytime (sun has risen)");
       #endif
-      factStatus = FACT_DAY;
-      ledStatus = LEDS_OFF;
+      if (factStatus!=FACT_DAY) {
+        factStatus = FACT_DAY;
+        if (ledStatus!=LEDS_OFF) {
+          ledStatus = LEDS_OFF;
+          initLEDs();
+        }
+      }
     }
   } else {
     Serial.println("It's night (sun has set)");
@@ -161,19 +194,27 @@ void updateLedStatus() {
       #ifdef SERIAL_ON
       Serial.println("Time to sleep - Leds are dimmed");
       #endif
-      factStatus = FACT_NIGHT;
-      ledStatus = LEDS_DIMMED;
+      if (factStatus!=FACT_NIGHT) {
+        factStatus = FACT_NIGHT;
+        if (ledStatus!=LEDS_DIMMED) {
+          ledStatus = LEDS_DIMMED;
+          initLEDs();
+        }
+      }
     } else {
       #ifdef SERIAL_ON
       Serial.println("It's dark - Leds are on");
       #endif
       if (factStatus!=FACT_DARK) {
         //ledStatus has changed, so we need to update the RTC via the network
-        //This might result in another change, but as LEDS_ON and LEDS_ON_DAWN are actually the same, this will not happen
-        getNetworkTime();
+        //This might result in another change, but as FACT_DARK and FACT_DAWN both result in LEDS_ON, this will not happen
+        getNetworkTime(false);
+        factStatus = FACT_DARK;
+        if (ledStatus!=LEDS_ON) {
+          ledStatus = LEDS_ON;
+          initLEDs();
+        }
       }
-      factStatus = FACT_DARK;
-      ledStatus = LEDS_ON;
     }
   }
 }
@@ -187,7 +228,7 @@ void setup() {
   setupWiFi();
 
   RTC.begin(); //Start the real time clock
-  getNetworkTime();
+  getNetworkTime(true);
 
   updateLedStatus();
 
@@ -229,11 +270,15 @@ void sendHttpHeader() {
     "\r\n");
 }
 
-void printDiv(boolean close) {
+void printDiv(boolean close, boolean flex) {
   if (close) {
     client.print(F("</div>\r\n"));
   }
-  client.print(F("<div class=\"mb-3\">"));
+  client.print(F("<div class=\"mb-3"));
+  if (flex) {
+    client.print(F(" d-flex\" style=\"gap:10px"));
+  }
+  client.print("\">");
 }
 
 void printOption(char* name, char* label, int value, int current) {
@@ -271,25 +316,30 @@ void sendHomepageBody() {
   client.print(F("</span></h3>"));
   client.print(F("<h3><span class=\"badge\">&#x1F305; "));
   client.print(String(riseTime).substring(11,16));
-  client.print(F("; &#x1F307; "));
+  client.print(F(" - &#x1F307; "));
   client.print(String(setTime).substring(11,16));
   client.print(F(" - "));
   client.print(FACTSTR[factStatus]);
   client.print(F("</span></h3>\r\n"));
 
   client.print(F("<form>"));
-  printDiv(false);
+  printDiv(false,false);
   printOption("status","LEDs on",LEDS_ON,ledStatus);
   printOption("status","LEDs dimmed",LEDS_DIMMED,ledStatus);
   printOption("status","LEDs off",LEDS_OFF,ledStatus);
-  printDiv(true);
+  printDiv(true,false);
   printOption("mode","Discrete",MODE_DISCRETE,ledMode);
   printOption("mode","Christmas",MODE_CHRISTMAS,ledMode);
   printOption("mode","NL flag",MODE_NL,ledMode);
   printOption("mode","Chaser",MODE_CHASER,ledMode);
   printOption("mode","Rainbow",MODE_RAINBOW,ledMode);
   printOption("mode","Staircase",MODE_STAIRCASE,ledMode);
-  printDiv(true);
+  printDiv(true,true);
+  client.print(F("<label class=\"form-label\" for=\"brightness\">Brightness</label>"));
+  client.print(F("<input type=\"range\" class=\"form-range\" name=\"brightness\" id=\"brightness\" min=\"0\" max=\"255\" value=\""));
+  client.print(maxBrightness);
+  client.print("\">");
+  printDiv(true,true);
   client.print(F("<button type=\"submit\" class=\"btn btn-warning\">Submit</button>"));
   client.print(F("<a href=\"/\" class=\"btn btn-info\" role=\"button\">Refresh</a>"));
   client.print(F("</div></form></div></body></html>\r\n"));
@@ -339,15 +389,39 @@ void checkWebClient() {
         } else {
           //Handle request
           if (req.startsWith("GET /?")) {
+            boolean changed = false;
             int pos = req.indexOf("status=");
             if (pos>0) {
-              ledStatus = req.substring(pos+7,pos+8).toInt();
+              int newLedStatus = req.substring(pos+7,pos+8).toInt();
+              if (newLedStatus!=ledStatus) {
+                ledStatus = newLedStatus;
+                changed = true;
+              }
+              #ifdef SERIAL_ON
               Serial.println(">>> Status: [" + req.substring(pos+7,pos+8) + "]");
+              #endif
             }
             pos = req.indexOf("mode=");
             if (pos>0) {
-              ledMode = req.substring(pos+5,pos+6).toInt();
+              int newLedMode = req.substring(pos+5,pos+6).toInt();
+              if (newLedMode!=ledMode) {
+                ledMode = newLedMode;
+                changed = true;
+              }
+              #ifdef SERIAL_ON
               Serial.println(">>> Mode: [" + req.substring(pos+5,pos+6) + "]");
+              #endif
+            }
+            pos = req.indexOf("brightness=");
+            if (pos>0) {
+              int newBrightness = req.substring(pos+11,pos+14).toInt(); //Only works if brightness is the last element!
+              if (newBrightness!=maxBrightness) {
+                maxBrightness = newBrightness;
+                changed = true;
+              }
+            }
+            if (changed) {
+              initLEDs(); //initialise the LEDs with the new settings
             }
           }
         }
@@ -399,5 +473,5 @@ void loop() {
   checkWebClient();
   checkInternalLed();
   checkStatusUpdate();
-  checkLedString();
+  updateLEDs();
 }
