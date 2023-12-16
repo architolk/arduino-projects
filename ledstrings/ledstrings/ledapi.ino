@@ -210,7 +210,7 @@ void checkDimmedString() {
   currentTime = millis();
   if ((currentTime - waveTime) > 1000) {
     for (int i=0; (i<3) && (i<NUM_LEDS); i++) {
-      leds[0][i] = ((leds[0][i]==0) ? 0x400000 : 0);
+      leds[0][NUM_LEDS - i] = ((leds[0][NUM_LEDS - i]==0) ? 0x400000 : 0);
     }
     FastLED.show();
     resetWaveTimer();
