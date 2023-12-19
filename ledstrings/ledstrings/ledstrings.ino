@@ -44,6 +44,13 @@ time_t statusUpdateTime;
 time_t connectTime;
 time_t currentTime;
 
+//The RTC is not very reliable, we need to adjust the clock...
+time_t initCorrectTime = 0 ;
+time_t newCorrectTime = 0 ;
+time_t currentDeviatedTime = 0;
+int timeDeviationPerHour = 0; //the calculated time deviation per hour
+int minutesPast = 0;
+
 RTCTime currentRTCTime;
 RTCTime riseTime;
 RTCTime setTime;
@@ -177,6 +184,15 @@ void getNetworkTime(boolean initial) {
       Serial.print("Unix time = ");
       Serial.println(unixTime);
       #endif
+
+      if (initCorrectTime==0) {
+        initCorrectTime = unixTime;
+      } else {
+        newCorrectTime = unixTime;
+        RTC.getTime(currentRTCTime);
+        currentDeviatedTime = currentRTCTime.getUnixTime();
+        timeDeviationPerHour = timeDeviationPerHour + (((currentDeviatedTime - newCorrectTime) * 3600) / (newCorrectTime - initCorrectTime));
+      }
       RTCTime timeToSet = RTCTime(unixTime);
       RTC.setTime(timeToSet);
 
@@ -383,7 +399,12 @@ void sendHomepageBody() {
 
   client.print(F("<h3><span class=\"badge\"><a href=\"/settime\">"));
   client.print(String(currentRTCTime));
-  client.print(F("</a></span></h3>"));
+  client.print(F("</a>("));
+  if (timeDeviationPerHour>0) {
+    client.print("+");
+  }
+  client.print(timeDeviationPerHour);
+  client.print(F(")</span></h3>"));
   client.print(F("<h3><span class=\"badge\">&#x1F305; "));
   client.print(String(riseTime).substring(11,16));
   client.print(F(" - &#x1F307; "));
@@ -519,6 +540,8 @@ void checkWebClient() {
             }
             pos = req.indexOf("time");
             if (pos>0) {
+              RTC.getTime(currentRTCTime);
+              currentDeviatedTime = currentRTCTime.getUnixTime();
               #ifdef SERIAL_ON
               Serial.println("Hour: ["+req.substring(pos+5,pos+7)+"] Minutes: ["+req.substring(pos+10,pos+12)+"]");
               #endif
@@ -534,6 +557,19 @@ void checkWebClient() {
               timeChanged = true;
             }
             if (timeChanged) {
+              if (initCorrectTime==0) {
+                //No initial time set, so make it so
+                initCorrectTime = currentRTCTime.getUnixTime();
+              } else {
+                //We have an initial time, now get the new correct time;
+                newCorrectTime = currentRTCTime.getUnixTime();
+                //The difference between the init en new correct time is the deviation period in seconds
+                //The difference between the currentDeviatedTime and the new correct time is the deviation in seconds
+                //So the quotient of these two is the deviation in seconds, multiplied with 3600, we get the deviation in seconds per hour
+                //This is the amount we have to substract from the current time every hour
+                //The time deviation is the relevant deviation AFTER this correction, so we need to take the original deviation into account!
+                timeDeviationPerHour = timeDeviationPerHour + (((currentDeviatedTime - newCorrectTime) * 3600) / (newCorrectTime - initCorrectTime));
+              }
               RTC.setTime(currentRTCTime);
               updateLedStatus();
             }
@@ -574,11 +610,20 @@ void checkInternalLed() {
 }
 
 //Ones every minute, the LED status will be updated to the current situation
+//Ones every hour, we will adjust the RTC
 void checkStatusUpdate() {
   currentTime = millis();
   if ((currentTime - statusUpdateTime) > 60000) {
     updateLedStatus();
     resetStatusUpdateTimer();
+    minutesPast++;
+    if (minutesPast>=60) {
+      minutesPast=0;
+      RTC.getTime(currentRTCTime);
+      currentDeviatedTime = currentRTCTime.getUnixTime() - timeDeviationPerHour;
+      currentRTCTime.setUnixTime(currentDeviatedTime);
+      RTC.setTime(currentRTCTime);
+    }
   }
 }
 
