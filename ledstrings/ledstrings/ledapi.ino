@@ -30,6 +30,10 @@ static byte heat[NUM_LEDS];
 #define CONFIG_COOLING 6
 #define CONFIG_SPARKING 120
 
+//Necessary for the Meteor animation
+#define CONFIG_METEORSIZE 10
+#define CONFIG_TRAILDECAY 64
+
 //Globals LED-API (refactor - should be API globals)
 int brightness;
 int delta;
@@ -91,6 +95,7 @@ void initLEDs() {
           break;
         case MODE_METEOR:
           initLEDsOff();
+          offset = 0;
           break;
         default:
           initLEDSYellowFlow();
@@ -392,5 +397,32 @@ void checkFireString() {
 }
 
 void checkMeteorRainString() {
+
+  currentTime = millis();
+  if ((currentTime - waveTime) > 30) {
+
+    for (int x=0; x<NUM_STRIPS; x++) {
+      // fade brightness all LEDs one step
+      for(int i=0; i<NUM_LEDS; i++) {
+        if (random(10)>5) { //Random trail decay
+          leds[x][i].fadeToBlackBy(CONFIG_TRAILDECAY);
+        }
+      }
+
+      // draw meteor
+      for(int i = 0; i < CONFIG_METEORSIZE; i++) {
+        if( ( offset-i <NUM_LEDS) && (offset-i>=0) ) {
+          leds[x][offset-i].setRGB(255, 255, 255); //Set different RGB for different meteor color
+        }
+      }
+    }
+
+    offset++;
+    if (offset>=NUM_LEDS+NUM_LEDS) {
+      offset=0;
+    }
+
+    FastLED.show();
+  }
 
 }
