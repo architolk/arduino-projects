@@ -24,6 +24,12 @@
 
 const int CHASER_LIGHTS[] PROGMEM = {0,10,40,128,255,255,128,40,10,0};
 
+//Necessary for the Fire animation
+static byte heat[NUM_LEDS];
+// CONFIG_COOLING = (55 * 10 / NUM_LEDS)+2 =
+#define CONFIG_COOLING 6
+#define CONFIG_SPARKING 120
+
 //Globals LED-API (refactor - should be API globals)
 int brightness;
 int delta;
@@ -80,6 +86,12 @@ void initLEDs() {
           initLEDsOff(); //Staircase starts with all LEDs off
           offset = 0;
           break;
+        case MODE_FIRE:
+          initLEDsOff();
+          break;
+        case MODE_METEOR:
+          initLEDsOff();
+          break;
         default:
           initLEDSYellowFlow();
           break;
@@ -109,9 +121,16 @@ void updateLEDs() {
         case MODE_CHASER:
           checkChaserString();
           break;
+        case MODE_CHRISTMAS:
+          checkStarBlink(true);
+          break;
+        case MODE_FIRE:
+          checkFireString();
+          break;
+        case MODE_METEOR:
+          checkMeteorRainString();
         case MODE_NL:
         case MODE_RAINBOW:
-        case MODE_CHRISTMAS:
         default:
           break; //No movement in these modes
       }
@@ -219,7 +238,7 @@ void checkDimmedString() {
 
 void checkChaserString() {
   currentTime = millis();
-  if ((currentTime - waveTime) > 10) {
+  if ((currentTime - waveTime) > 5) {
     for (int x=0; x<NUM_STRIPS; x++) {
       for (int i=0; (i<10) && (i<NUM_LEDS); i++) {
         leds[x][i+offset].setRGB(CHASER_LIGHTS[i],0,0);
@@ -289,18 +308,89 @@ void checkLedString() {
     resetWaveTimer();
   }
 
- if ((currentTime - starBlinkTime) > starDelay) {
-   // Reset to original when blink is active, otherwise: set a LED to bright white
-   // Blink will be active for 0.1s
-   if (blinkActive) {
-     leds[blinkingStripNr][blinkingLedNr] = original;
-   } else {
-     blinkingLedNr = random(NUM_LEDS);
-     blinkingStripNr = random(NUM_STRIPS);
-     original = leds[blinkingStripNr][blinkingLedNr];
-     leds[blinkingStripNr][blinkingLedNr] = 0xFFFFFF;
-   }
-   FastLED.show();
-   resetStarDelay(!blinkActive);
- }
+  checkStarBlink(false);
+
+  FastLED.show();
+}
+
+void checkStarBlink(boolean doShow) {
+
+  if ((currentTime - starBlinkTime) > starDelay) {
+    // Reset to original when blink is active, otherwise: set a LED to bright white
+    // Blink will be active for 0.1s
+    if (blinkActive) {
+      leds[blinkingStripNr][blinkingLedNr] = original;
+    } else {
+      blinkingLedNr = random(NUM_LEDS);
+      blinkingStripNr = random(NUM_STRIPS);
+      original = leds[blinkingStripNr][blinkingLedNr];
+      leds[blinkingStripNr][blinkingLedNr] = 0xFFFFFF;
+    }
+    resetStarDelay(!blinkActive);
+    if (doShow) {
+      FastLED.show();
+    }
+  }
+
+}
+
+void setPixelHeatColor (int pixel, byte temperature) {
+  // Scale 'heat' down from 0-255 to 0-191
+  byte t192 = round((temperature/255.0)*191);
+
+  // calculate ramp up from
+  byte heatramp = t192 & 0x3F; // 0..63
+  heatramp <<= 2; // scale up to 0..252
+
+  // figure out which third of the spectrum we're in:
+  for (int x=0; x<NUM_STRIPS; x++) {
+    if( t192 > 0x80) {                     // hottest
+      leds[x][pixel].setRGB(255,255,heatramp);
+    } else if( t192 > 0x40 ) {             // middle
+      leds[x][pixel].setRGB(255,heatramp,0);
+    } else {                               // coolest
+      leds[x][pixel].setRGB(heatramp,0,0);
+    }
+  }
+}
+
+void checkFireString() {
+
+  currentTime = millis();
+  if ((currentTime - waveTime) > 8) {
+    int cooldown;
+
+    // Step 1.  Cool down every cell a little
+    for( int i = 0; i < NUM_LEDS; i++) {
+      cooldown = random(0, CONFIG_COOLING);
+
+      if(cooldown>heat[i]) {
+        heat[i]=0;
+      } else {
+        heat[i]=heat[i]-cooldown;
+      }
+    }
+
+    // Step 2.  Heat from each cell drifts 'up' and diffuses a little
+    for( int k= NUM_LEDS - 1; k >= 2; k--) {
+      heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2]) / 3;
+    }
+
+    // Step 3.  Randomly ignite new 'sparks' near the bottom
+    if( random(255) < CONFIG_SPARKING ) {
+      int y = random(7);
+      heat[y] = heat[y] + random(160,255);
+      //heat[y] = random(160,255);
+    }
+
+    // Step 4.  Convert heat to LED colors
+    for( int j = 0; j < NUM_LEDS; j++) {
+      setPixelHeatColor(j, heat[j] );
+    }
+  }
+  FastLED.show();
+}
+
+void checkMeteorRainString() {
+
 }

@@ -82,6 +82,8 @@ int ledStatus = LEDS_ON;
 #define MODE_CHASER 4
 #define MODE_RAINBOW 5
 #define MODE_STAIRCASE 6
+#define MODE_FIRE 7
+#define MODE_METEOR 8
 int ledMode = MODE_DISCRETE;
 
 #define FACT_DARK 0
@@ -425,6 +427,8 @@ void sendHomepageBody() {
   printOption("mode","Chaser",MODE_CHASER,ledMode);
   printOption("mode","Rainbow",MODE_RAINBOW,ledMode);
   printOption("mode","Staircase",MODE_STAIRCASE,ledMode);
+  printOption("mode","Fire",MODE_FIRE,ledMode);
+  printOption("mode","Meteor",MODE_METEOR,ledMode);
   printDiv(true,true);
   client.print(F("<label class=\"form-label\" for=\"brightness\">Brightness</label>"));
   client.print(F("<input type=\"range\" class=\"form-range\" name=\"brightness\" id=\"brightness\" min=\"0\" max=\"255\" value=\""));
