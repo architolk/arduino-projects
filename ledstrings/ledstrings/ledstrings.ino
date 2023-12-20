@@ -214,9 +214,24 @@ void recalculateDeviation(time_t retrievedTime) {
     //So the quotient of these two is the deviation in seconds, multiplied with 3600, we get the deviation in seconds per hour
     //This is the amount we have to substract from the current time every hour
     //The time deviation is the relevant deviation AFTER this correction, so we need to take the original deviation into account!
-    int newDeviation = timeDeviationPerHour + (((currentDeviatedTime - newCorrectTime) * 3600) / (newCorrectTime - initCorrectTime));
-    if (abs(newDeviation)<120) { //Sanity check: deviation should not be more than 2 minutes per hour!
-      timeDeviationPerHour = newDeviation
+    int interval = newCorrectTime - initCorrectTime;
+    if (interval>3600) { //Interval should be at least an hour, or the calculation will have large errors due to round-offs
+      int newDeviation = timeDeviationPerHour + (((currentDeviatedTime - newCorrectTime) * 3600) / interval);
+      #ifdef SERIAL_ON
+      Serial.print("Current deviation: ");
+      Serial.println(timeDeviationPerHour);
+      Serial.print("Current deviated time: ");
+      Serial.println(currentDeviatedTime);
+      Serial.print("New correct time: ");
+      Serial.println(newCorrectTime);
+      Serial.print("init correct time: ");
+      Serial.println(initCorrectTime);
+      Serial.print("Deviation: ");
+      Serial.println(newDeviation);
+      #endif
+      if (abs(newDeviation)<240) { //Sanity check: deviation should not be more than 4 minutes per hour!
+        timeDeviationPerHour = round(newDeviation);
+      }
     }
   }
 }
@@ -413,7 +428,7 @@ void sendHomepageBody() {
 
   client.print(F("<h3><span class=\"badge\"><a href=\"/settime\">"));
   client.print(String(currentRTCTime));
-  client.print(F("</a>("));
+  client.print(F("</a> ("));
   if (timeDeviationPerHour>0) {
     client.print("+");
   }
@@ -555,26 +570,27 @@ void checkWebClient() {
               }
             }
             pos = req.indexOf("time");
+            RTCTime newRTCTime;
             if (pos>0) {
-              RTC.getTime(currentRTCTime);
-              currentDeviatedTime = currentRTCTime.getUnixTime();
+              RTC.getTime(newRTCTime);
+              currentDeviatedTime = newRTCTime.getUnixTime();
               #ifdef SERIAL_ON
               Serial.println("Hour: ["+req.substring(pos+5,pos+7)+"] Minutes: ["+req.substring(pos+10,pos+12)+"]");
               #endif
-              currentRTCTime.setHour(req.substring(pos+5,pos+7).toInt());
-              currentRTCTime.setMinute(req.substring(pos+10,pos+12).toInt());
+              newRTCTime.setHour(req.substring(pos+5,pos+7).toInt());
+              newRTCTime.setMinute(req.substring(pos+10,pos+12).toInt());
               timeChanged = true;
             }
             pos = req.indexOf("date");
             if (pos>0) {
-              currentRTCTime.setYear(req.substring(pos+5,pos+9).toInt());
-              currentRTCTime.setMonthOfYear(intToMonth(req.substring(pos+10,pos+12).toInt()));
-              currentRTCTime.setDayOfMonth(req.substring(pos+13,pos+15).toInt());
+              newRTCTime.setYear(req.substring(pos+5,pos+9).toInt());
+              newRTCTime.setMonthOfYear(intToMonth(req.substring(pos+10,pos+12).toInt()));
+              newRTCTime.setDayOfMonth(req.substring(pos+13,pos+15).toInt());
               timeChanged = true;
             }
             if (timeChanged) {
-              recalculateDeviation(currentRTCTime.getUnixTime());
-              RTC.setTime(currentRTCTime);
+              recalculateDeviation(newRTCTime.getUnixTime());
+              RTC.setTime(newRTCTime);
               updateLedStatus();
             }
             if (changed) {
