@@ -187,14 +187,7 @@ void getNetworkTime(boolean initial) {
       Serial.println(unixTime);
       #endif
 
-      if (initCorrectTime==0) {
-        initCorrectTime = unixTime;
-      } else {
-        newCorrectTime = unixTime;
-        RTC.getTime(currentRTCTime);
-        currentDeviatedTime = currentRTCTime.getUnixTime();
-        timeDeviationPerHour = timeDeviationPerHour + (((currentDeviatedTime - newCorrectTime) * 3600) / (newCorrectTime - initCorrectTime));
-      }
+      recalculateDeviation(unixTime);
       RTCTime timeToSet = RTCTime(unixTime);
       RTC.setTime(timeToSet);
 
@@ -205,6 +198,25 @@ void getNetworkTime(boolean initial) {
       #endif
 
       timeClient.end(); //End the timeclient, as we will only call this routine ones a day
+    }
+  }
+}
+
+void recalculateDeviation(time_t retrievedTime) {
+  if (initCorrectTime==0) {
+    initCorrectTime = retrievedTime;
+  } else {
+    newCorrectTime = retrievedTime;
+    RTC.getTime(currentRTCTime);
+    currentDeviatedTime = currentRTCTime.getUnixTime();
+    //The difference between the init en new correct time is the deviation period in seconds
+    //The difference between the currentDeviatedTime and the new correct time is the deviation in seconds
+    //So the quotient of these two is the deviation in seconds, multiplied with 3600, we get the deviation in seconds per hour
+    //This is the amount we have to substract from the current time every hour
+    //The time deviation is the relevant deviation AFTER this correction, so we need to take the original deviation into account!
+    int newDeviation = timeDeviationPerHour + (((currentDeviatedTime - newCorrectTime) * 3600) / (newCorrectTime - initCorrectTime));
+    if (abs(newDeviation)<120) { //Sanity check: deviation should not be more than 2 minutes per hour!
+      timeDeviationPerHour = newDeviation
     }
   }
 }
@@ -561,19 +573,7 @@ void checkWebClient() {
               timeChanged = true;
             }
             if (timeChanged) {
-              if (initCorrectTime==0) {
-                //No initial time set, so make it so
-                initCorrectTime = currentRTCTime.getUnixTime();
-              } else {
-                //We have an initial time, now get the new correct time;
-                newCorrectTime = currentRTCTime.getUnixTime();
-                //The difference between the init en new correct time is the deviation period in seconds
-                //The difference between the currentDeviatedTime and the new correct time is the deviation in seconds
-                //So the quotient of these two is the deviation in seconds, multiplied with 3600, we get the deviation in seconds per hour
-                //This is the amount we have to substract from the current time every hour
-                //The time deviation is the relevant deviation AFTER this correction, so we need to take the original deviation into account!
-                timeDeviationPerHour = timeDeviationPerHour + (((currentDeviatedTime - newCorrectTime) * 3600) / (newCorrectTime - initCorrectTime));
-              }
+              recalculateDeviation(currentRTCTime.getUnixTime());
               RTC.setTime(currentRTCTime);
               updateLedStatus();
             }
