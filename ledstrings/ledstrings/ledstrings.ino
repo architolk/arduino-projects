@@ -48,7 +48,7 @@ time_t currentTime;
 time_t initCorrectTime = 0 ;
 time_t newCorrectTime = 0 ;
 time_t currentDeviatedTime = 0;
-int timeDeviationPerHour = 0; //the calculated time deviation per hour
+int timeDeviationPerHour = 88; //the calculated time deviation per hour, 88 seems to be a somewhat correct number
 int minutesPast = 0;
 
 RTCTime currentRTCTime;
@@ -108,17 +108,25 @@ void setupWiFi() {
 
   // attempt to connect to WiFi network:
   digitalWrite(LED_BUILTIN,HIGH);
-  while (status != WL_CONNECTED) {
+  int maxTry = 0;
+  while ((status != WL_CONNECTED) && (maxTry < 2)) {
     #ifdef SERIAL_ON
     Serial.print("Attempting to connect to SSID: ");
     Serial.println(ssid);
     #endif
     // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
     status = WiFi.begin(ssid, pass);
+    maxTry++;
 
     // acknowledge that we have lift-off
     // wait 10 seconds for connection:
-    delay(10000);
+    // flash fast to notify we try to get a WiFi connection
+    for (int i=0; i<20; i++) {
+      digitalWrite(LED_BUILTIN,LOW);
+      delay(250);
+      digitalWrite(LED_BUILTIN,HIGH);
+      delay(250);
+    }
   }
   networkAvailable = true;
   digitalWrite(LED_BUILTIN,LOW);
@@ -158,7 +166,7 @@ void getNetworkTime(boolean initial) {
     boolean succes = false;
     if (initial) {
       //Initialy we _need_ a correct time, so keep trying!
-      int maxTry = 1;
+      int maxTry = 0;
       while ((!succes) && (maxTry<10)) {
         succes = timeClient.update();
         delay(1000);
@@ -311,8 +319,12 @@ void setup() {
   Serial.begin(9600);
   #endif
 
-  //setupWiFi();
-  setupWiFiAccessPoint();
+  //Try a connection to the WiFI
+  setupWiFi();
+  //If this fails, create an access point
+  if (!networkAvailable) {
+    setupWiFiAccessPoint();
+  }
 
   RTC.begin(); //Start the real time clock
   getNetworkTime(true);
@@ -626,6 +638,7 @@ void checkInternalLed() {
     opsStatus = !opsStatus;
     digitalWrite(LED_BUILTIN,opsStatus);
     resetLedTimer();
+    checkWebClient(); //Try-out: only check the webclient every 0.5s instead of real-time
   }
 }
 
@@ -648,7 +661,7 @@ void checkStatusUpdate() {
 }
 
 void loop() {
-  checkWebClient();
+  //checkWebClient();
   checkInternalLed();
   checkStatusUpdate();
   updateLEDs();
