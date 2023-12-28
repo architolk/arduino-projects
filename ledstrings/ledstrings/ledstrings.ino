@@ -574,66 +574,68 @@ void checkWebClient() {
 
           if (req.startsWith("GET /settime")) {
             requestedPage = PAGE_SETTIME;
-          } else if (req.startsWith("GET /?")) {
+          } else if (req.startsWith("GET /")) {
             requestedPage = PAGE_HOME;
-            boolean changed = false;
-            boolean timeChanged = false;
-            int pos = req.indexOf("status=");
-            if (pos>0) {
-              int newLedStatus = req.substring(pos+7,pos+8).toInt();
-              if (newLedStatus!=ledStatus) {
-                ledStatus = newLedStatus;
-                changed = true;
+            if (req.startsWith("GET /?")) {
+              boolean changed = false;
+              boolean timeChanged = false;
+              int pos = req.indexOf("status=");
+              if (pos>0) {
+                int newLedStatus = req.substring(pos+7,pos+8).toInt();
+                if (newLedStatus!=ledStatus) {
+                  ledStatus = newLedStatus;
+                  changed = true;
+                }
+                #ifdef SERIAL_ON
+                Serial.println(">>> Status: [" + req.substring(pos+7,pos+8) + "]");
+                #endif
               }
-              #ifdef SERIAL_ON
-              Serial.println(">>> Status: [" + req.substring(pos+7,pos+8) + "]");
-              #endif
-            }
-            pos = req.indexOf("mode=");
-            if (pos>0) {
-              int newLedMode = req.substring(pos+5,pos+6).toInt();
-              if (newLedMode!=ledMode) {
-                ledMode = newLedMode;
-                changed = true;
+              pos = req.indexOf("mode=");
+              if (pos>0) {
+                int newLedMode = req.substring(pos+5,pos+6).toInt();
+                if (newLedMode!=ledMode) {
+                  ledMode = newLedMode;
+                  changed = true;
+                }
+                #ifdef SERIAL_ON
+                Serial.println(">>> Mode: [" + req.substring(pos+5,pos+6) + "]");
+                #endif
               }
-              #ifdef SERIAL_ON
-              Serial.println(">>> Mode: [" + req.substring(pos+5,pos+6) + "]");
-              #endif
-            }
-            pos = req.indexOf("brightness=");
-            if (pos>0) {
-              int newBrightness = req.substring(pos+11,pos+14).toInt(); //Only works if brightness is the last element!
-              if (newBrightness!=maxBrightness) {
-                maxBrightness = newBrightness;
-                changed = true;
+              pos = req.indexOf("brightness=");
+              if (pos>0) {
+                int newBrightness = req.substring(pos+11,pos+14).toInt(); //Only works if brightness is the last element!
+                if (newBrightness!=maxBrightness) {
+                  maxBrightness = newBrightness;
+                  changed = true;
+                }
               }
-            }
-            pos = req.indexOf("time");
-            RTCTime newRTCTime;
-            if (pos>0) {
-              RTC.getTime(newRTCTime);
-              currentDeviatedTime = newRTCTime.getUnixTime();
-              #ifdef SERIAL_ON
-              Serial.println("Hour: ["+req.substring(pos+5,pos+7)+"] Minutes: ["+req.substring(pos+10,pos+12)+"]");
-              #endif
-              newRTCTime.setHour(req.substring(pos+5,pos+7).toInt());
-              newRTCTime.setMinute(req.substring(pos+10,pos+12).toInt());
-              timeChanged = true;
-            }
-            pos = req.indexOf("date");
-            if (pos>0) {
-              newRTCTime.setYear(req.substring(pos+5,pos+9).toInt());
-              newRTCTime.setMonthOfYear(intToMonth(req.substring(pos+10,pos+12).toInt()));
-              newRTCTime.setDayOfMonth(req.substring(pos+13,pos+15).toInt());
-              timeChanged = true;
-            }
-            if (timeChanged) {
-              recalculateDeviation(newRTCTime.getUnixTime());
-              RTC.setTime(newRTCTime);
-              updateLedStatus();
-            }
-            if (changed) {
-              initLEDs(); //initialise the LEDs with the new settings
+              pos = req.indexOf("time");
+              RTCTime newRTCTime;
+              if (pos>0) {
+                RTC.getTime(newRTCTime);
+                currentDeviatedTime = newRTCTime.getUnixTime();
+                #ifdef SERIAL_ON
+                Serial.println("Hour: ["+req.substring(pos+5,pos+7)+"] Minutes: ["+req.substring(pos+10,pos+12)+"]");
+                #endif
+                newRTCTime.setHour(req.substring(pos+5,pos+7).toInt());
+                newRTCTime.setMinute(req.substring(pos+10,pos+12).toInt());
+                timeChanged = true;
+              }
+              pos = req.indexOf("date");
+              if (pos>0) {
+                newRTCTime.setYear(req.substring(pos+5,pos+9).toInt());
+                newRTCTime.setMonthOfYear(intToMonth(req.substring(pos+10,pos+12).toInt()));
+                newRTCTime.setDayOfMonth(req.substring(pos+13,pos+15).toInt());
+                timeChanged = true;
+              }
+              if (timeChanged) {
+                recalculateDeviation(newRTCTime.getUnixTime());
+                RTC.setTime(newRTCTime);
+                updateLedStatus();
+              }
+              if (changed) {
+                initLEDs(); //initialise the LEDs with the new settings
+              }
             }
           }
         }
