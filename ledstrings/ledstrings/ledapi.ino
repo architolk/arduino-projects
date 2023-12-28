@@ -337,13 +337,14 @@ void setPixelHeatColor (int pixel, byte temperature) {
   // calculate ramp up from
   byte heatramp = t192 & 0x3F; // 0..63
   heatramp <<= 2; // scale up to 0..252
+  byte heatrampGreen = heatramp >> 1; // scale down to 0..128 for green
 
   // figure out which third of the spectrum we're in:
   for (int x=0; x<NUM_STRIPS; x++) {
     if( t192 > 0x80) {                     // hottest
       leds[x][pixel].setRGB(255,128,heatramp); //Compensate green
     } else if( t192 > 0x40 ) {             // middle
-      leds[x][pixel].setRGB(255,heatramp>>1,0); //Compensate green
+      leds[x][pixel].setRGB(255,heatrampGreen,0); //Compensate green
     } else {                               // coolest
       leds[x][pixel].setRGB(heatramp,0,0);
     }
@@ -383,6 +384,7 @@ void checkFireString() {
       setPixelHeatColor(j, heat[j] );
     }
     FastLED.show();
+    waveTime = currentTime;
   }
 }
 
@@ -401,7 +403,11 @@ void checkMeteorRainString() {
       // draw meteor
       for(int i = 0; i < CONFIG_METEORSIZE; i++) {
         if( ( offset-i <NUM_LEDS) && (offset-i>=0) ) {
-          leds[x][offset-i].setRGB(255, 255, 255); //Set different RGB for different meteor color
+          if ((offset - CONFIG_METEORSIZE) < NUM_LEDS) {
+            leds[x][offset-i].setRGB(128, 64, 32); //Set different RGB for different meteor color
+          } else {
+            leds[x][offset-i].setRGB(255, 255, 255); //At the top - brightest setting
+          }
         }
       }
     }
@@ -412,6 +418,7 @@ void checkMeteorRainString() {
     }
 
     FastLED.show();
+    waveTime = currentTime;
   }
 
 }
