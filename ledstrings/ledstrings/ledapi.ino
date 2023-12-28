@@ -58,7 +58,6 @@ void setupLEDs() {
   FastLED.addLeds<WS2813, DATA_PIN1, GRB>(leds[1], NUM_LEDS);
   FastLED.addLeds<WS2813, DATA_PIN2, GRB>(leds[2], NUM_LEDS);
   resetStarDelay(false);
-  resetWaveTimer();
   initLEDs();
 }
 
@@ -156,11 +155,7 @@ void resetStarDelay(boolean _blinkActive) {
   } else {
     starDelay = random(MIN_BLINK_INTERVAL,MAX_BLINK_INTERVAL);
   }
-  starBlinkTime = millis();
-}
-
-void resetWaveTimer() {
-  waveTime = millis();
+  starBlinkTime = currentTime;
 }
 
 void initLEDSYellowFlow() {
@@ -231,19 +226,17 @@ void initRainbow() {
 
 void checkDimmedString() {
   //Only one strip (the first one) will be used for sending a red blinking light
-  currentTime = millis();
   if ((currentTime - waveTime) > 1000) {
     for (int i=1; (i<=3) && (i<NUM_LEDS); i++) {
       leds[0][NUM_LEDS - i] = ((leds[0][NUM_LEDS - i]==0) ? 0x400000 : 0);
     }
     FastLED.show();
-    resetWaveTimer();
+    waveTime = currentTime;
   }
 }
 
 void checkChaserString() {
-  currentTime = millis();
-  if ((currentTime - waveTime) > 5) {
+  if ((currentTime - waveTime) > 1) { //Very fast, testing...
     for (int x=0; x<NUM_STRIPS; x++) {
       for (int i=0; (i<10) && (i<NUM_LEDS); i++) {
         leds[x][i+offset].setRGB(CHASER_LIGHTS[i],0,0);
@@ -258,7 +251,7 @@ void checkChaserString() {
       delta = -1;
     }
     FastLED.show();
-    resetWaveTimer();
+    waveTime = currentTime;
   }
 }
 
@@ -274,7 +267,6 @@ void setStaircaseStep(int o, int b) {
 
 void checkStaircaseString() {
   if (offset<=NUM_LEDS) {
-    currentTime = millis();
     if ((currentTime - waveTime) > 1000) {
       if (offset>0) {
         setStaircaseStep(NUM_LEDS-offset+10,10);
@@ -282,14 +274,13 @@ void checkStaircaseString() {
       setStaircaseStep(NUM_LEDS-offset,maxBrightness);
       offset = offset + 10;
       FastLED.show();
-      resetWaveTimer();
+      waveTime = currentTime;
     }
   }
 }
 
 void checkLedString() {
 
-  currentTime = millis();
   if ((currentTime - waveTime) > 100) {
     for (int i=0; i<NUM_LEDS; i++) {
      setLEDColor(i,offset,brightness);
@@ -310,12 +301,12 @@ void checkLedString() {
       offset=0;
     }
     */
-    resetWaveTimer();
+    waveTime = currentTime;
+
+    checkStarBlink(false);
+
+    FastLED.show();
   }
-
-  checkStarBlink(false);
-
-  FastLED.show();
 }
 
 void checkStarBlink(boolean doShow) {
@@ -350,9 +341,9 @@ void setPixelHeatColor (int pixel, byte temperature) {
   // figure out which third of the spectrum we're in:
   for (int x=0; x<NUM_STRIPS; x++) {
     if( t192 > 0x80) {                     // hottest
-      leds[x][pixel].setRGB(255,255,heatramp);
+      leds[x][pixel].setRGB(255,128,heatramp); //Compensate green
     } else if( t192 > 0x40 ) {             // middle
-      leds[x][pixel].setRGB(255,heatramp,0);
+      leds[x][pixel].setRGB(255,heatramp>>1,0); //Compensate green
     } else {                               // coolest
       leds[x][pixel].setRGB(heatramp,0,0);
     }
@@ -361,7 +352,6 @@ void setPixelHeatColor (int pixel, byte temperature) {
 
 void checkFireString() {
 
-  currentTime = millis();
   if ((currentTime - waveTime) > 8) {
     int cooldown;
 
@@ -392,14 +382,13 @@ void checkFireString() {
     for( int j = 0; j < NUM_LEDS; j++) {
       setPixelHeatColor(j, heat[j] );
     }
+    FastLED.show();
   }
-  FastLED.show();
 }
 
 void checkMeteorRainString() {
 
-  currentTime = millis();
-  if ((currentTime - waveTime) > 30) {
+  if ((currentTime - waveTime) > 10) {
 
     for (int x=0; x<NUM_STRIPS; x++) {
       // fade brightness all LEDs one step

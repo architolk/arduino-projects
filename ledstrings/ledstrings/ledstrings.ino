@@ -341,9 +341,6 @@ void setup() {
 
   //Setup for the LEDs (init of FastLED etc)
   setupLEDs();
-
-  resetLedTimer();
-  resetStatusUpdateTimer();
 }
 
 void printWifiStatus() {
@@ -497,7 +494,7 @@ Month intToMonth(int m) {
 }
 
 void checkWebClient() {
-  connectTime = millis();
+  connectTime = currentTime;
   // listen for incoming clients
   client = server.available();
 
@@ -509,7 +506,7 @@ void checkWebClient() {
     bool currentLineIsBlank = true;
 
     while (client.connected()) {
-      currentTime = millis();
+      // currentTime = millis(); Set currentTime only ones (in main loop)
       if ((currentTime - connectTime) > 5000) {
         #ifdef SERIAL_ON
         Serial.println("Connection timeout");
@@ -624,31 +621,23 @@ void checkWebClient() {
   }
 }
 
-void resetLedTimer() {
-  startTime = millis();
-}
-
-void resetStatusUpdateTimer() {
-  statusUpdateTime = millis();
-}
-
 void checkInternalLed() {
-  currentTime = millis();
-  if ((currentTime - startTime) > 500) {
+  // currentTime = millis(); Set currentTime only ones (in main loop)
+  if ((currentTime - startTime) > 1000) {
     opsStatus = !opsStatus;
     digitalWrite(LED_BUILTIN,opsStatus);
-    resetLedTimer();
-    checkWebClient(); //Try-out: only check the webclient every 0.5s instead of real-time
+    startTime = currentTime;
+    checkWebClient(); //We only check the webclient ones a second
   }
 }
 
 //Ones every minute, the LED status will be updated to the current situation
 //Ones every hour, we will adjust the RTC
 void checkStatusUpdate() {
-  currentTime = millis();
+  // currentTime = millis(); Set currentTime only ones (in main loop)
   if ((currentTime - statusUpdateTime) > 60000) {
     updateLedStatus();
-    resetStatusUpdateTimer();
+    statusUpdateTime = currentTime;
     minutesPast++;
     if (minutesPast>=60) {
       minutesPast=0;
@@ -661,7 +650,7 @@ void checkStatusUpdate() {
 }
 
 void loop() {
-  //checkWebClient();
+  currentTime = millis(); //Set currentTime only ones!
   checkInternalLed();
   checkStatusUpdate();
   updateLEDs();
