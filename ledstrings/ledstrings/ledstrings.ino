@@ -43,6 +43,7 @@ time_t startTime;
 time_t statusUpdateTime;
 time_t connectTime;
 time_t currentTime;
+int reconnectLog = 0;
 
 //The RTC is not very reliable, we need to adjust the clock...
 time_t initCorrectTime = 0 ;
@@ -109,6 +110,7 @@ void setupWiFi() {
   // attempt to connect to WiFi network:
   digitalWrite(LED_BUILTIN,HIGH);
   int maxTry = 0;
+  networkAvailable = false;
   while ((status != WL_CONNECTED) && (maxTry < 2)) {
     #ifdef SERIAL_ON
     Serial.print("Attempting to connect to SSID: ");
@@ -119,9 +121,9 @@ void setupWiFi() {
     maxTry++;
 
     // acknowledge that we have lift-off
-    // wait 10 seconds for connection:
+    // wait 5 seconds for connection:
     // flash fast to notify we try to get a WiFi connection
-    for (int i=0; i<20; i++) {
+    for (int i=0; i<10; i++) {
       digitalWrite(LED_BUILTIN,LOW);
       delay(250);
       digitalWrite(LED_BUILTIN,HIGH);
@@ -130,6 +132,30 @@ void setupWiFi() {
   }
   networkAvailable = true;
   digitalWrite(LED_BUILTIN,LOW);
+}
+
+void checkWiFiStatus() {
+  if (networkAvailable) {
+    status = WiFi.status();
+    if (status!=WL_CONNECTED) {
+      #ifdef SERIAL_ON
+      Serial.println("Lost internet connection to SSID!");
+      Serial.println("Trying to reconnect...");
+      #endif
+
+      //Trying to reconnection to the WiFI
+      setupWiFi();
+
+      if (networkAvailable) {
+        reconnectLog++;
+      } else {
+        #ifdef SERIAL_ON
+        Serial.println("Connection could not be restored, try later...");
+        #endif
+        networkAvailable = true; //It should available, so we retry later (we don't create a access point at retry!)
+      }
+    }
+  }
 }
 
 void setupWiFiAccessPoint() {
@@ -150,8 +176,8 @@ void setupWiFiAccessPoint() {
     while (true);
   }
 
-  // wait 10 seconds for connection:
-  delay(10000);
+  // wait 5 seconds for connection:
+  delay(5000);
   digitalWrite(LED_BUILTIN,LOW);
 
 }
@@ -417,6 +443,10 @@ void sendTimepageBody() {
 
   printHtmlHead();
 
+  client.print(F("<h3><span class=\"badge\">Reconnect: "));
+  client.print(reconnectLog);
+  client.print(F("</span></h3>"));
+
   printForm();
   printDiv(false,true);
   client.print(F("<label class=\"form-label\" for=\"time\">Time</label>"));
@@ -627,6 +657,7 @@ void checkInternalLed() {
     opsStatus = !opsStatus;
     digitalWrite(LED_BUILTIN,opsStatus);
     startTime = currentTime;
+    checkWiFiStatus(); //Do we still have an internet connection?
     checkWebClient(); //We only check the webclient ones a second
   }
 }
