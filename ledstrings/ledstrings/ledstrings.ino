@@ -86,6 +86,7 @@ int ledStatus = LEDS_ON;
 #define MODE_FIRE 7
 #define MODE_METEOR 8
 #define MODE_SPARKLES 9
+#define MODE_FIREWORKS 10
 int ledMode = MODE_DISCRETE;
 
 #define FACT_DARK 0
@@ -317,11 +318,27 @@ void updateLedStatus() {
       #ifdef SERIAL_ON
       Serial.println("Time to sleep - Leds are dimmed");
       #endif
-      if (factStatus!=FACT_NIGHT) {
-        factStatus = FACT_NIGHT;
-        if (ledStatus!=LEDS_DIMMED) {
-          ledStatus = LEDS_DIMMED;
-          initLEDs();
+      if ((currentRTCTime.getDayOfMonth()==31) && (currentRTCTime.getMonth()==Month::DECEMBER) && (currentMinutes>=0) && (currentMinutes<=30)) {
+        //Special situation: new year! 30 minutes of fireworks!
+        #ifdef SERIAL_ON
+        Serial.println("New year!");
+        #endif
+        if (factStatus!=FACT_NEWYEAR) {
+          factStatus = FACT_NEWYEAR;
+          if ((ledStatus!=LEDS_ON) || (ledMode!=MODE_FIREWORKS)) {
+            ledStatus = LEDS_ON;
+            ledMode = MODE_FIREWORKS;
+            initLEDs();
+          }
+        }
+      } else {
+        //Normal night situation
+        if (factStatus!=FACT_NIGHT) {
+          factStatus = FACT_NIGHT;
+          if (ledStatus!=LEDS_DIMMED) {
+            ledStatus = LEDS_DIMMED;
+            initLEDs();
+          }
         }
       }
     } else {
@@ -499,6 +516,7 @@ void sendHomepageBody() {
   printOption("mode","Fire",MODE_FIRE,ledMode);
   printOption("mode","Meteor",MODE_METEOR,ledMode);
   printOption("mode","Sparkles",MODE_SPARKLES,ledMode);
+  printOption("mode","Fireworks",MODE_FIREWORKS,ledMode);
   printDiv(true,true);
   client.print(F("<label class=\"form-label\" for=\"brightness\">Brightness</label>"));
   client.print(F("<input type=\"range\" class=\"form-range\" name=\"brightness\" id=\"brightness\" min=\"0\" max=\"255\" value=\""));
@@ -596,13 +614,16 @@ void checkWebClient() {
               }
               pos = req.indexOf("mode=");
               if (pos>0) {
-                int newLedMode = req.substring(pos+5,pos+6).toInt();
+                int newLedMode = req.substring(pos+5,pos+7).toInt(); //Allow for modes 10 and above, toInt will work for things like "3&"
                 if (newLedMode!=ledMode) {
                   ledMode = newLedMode;
                   changed = true;
                 }
                 #ifdef SERIAL_ON
-                Serial.println(">>> Mode: [" + req.substring(pos+5,pos+6) + "]");
+                int test = req.substring(pos+5,pos+7).toInt();
+                Serial.println(">>> Mode: [" + req.substring(pos+5,pos+7) + "]");
+                Serial.print(">>> Ledmode: ");
+                Serial.println(ledMode);
                 #endif
               }
               pos = req.indexOf("brightness=");

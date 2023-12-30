@@ -92,6 +92,7 @@ void initLEDs() {
         case MODE_FIRE:
           initLEDsOff();
           break;
+        case MODE_FIREWORKS:
         case MODE_METEOR:
           initLEDsOff();
           offset = 0;
@@ -135,10 +136,15 @@ void updateLEDs() {
           checkFireString();
           break;
         case MODE_METEOR:
-          checkMeteorRainString();
+          checkMeteorRainString(NUM_STRIPS); //All strips meteor
           break;
         case MODE_SPARKLES:
-          checkSparklesString();
+          checkSparklesString(0); //All strips sparkles
+          break;
+        case MODE_FIREWORKS:
+          //Fireworks is a combination of meteor and sparkles for different strips
+          checkMeteorRainString(1); //Only strip 0 meteor
+          checkSparklesString(1); //All except strip 0 sparkles
           break;
         case MODE_NL:
         case MODE_RAINBOW:
@@ -395,11 +401,11 @@ void checkFireString() {
   }
 }
 
-void checkMeteorRainString() {
+void checkMeteorRainString(int strips) {
 
   if ((currentTime - waveTime) > 10) {
 
-    for (int x=0; x<NUM_STRIPS; x++) {
+    for (int x=0; x<strips; x++) {
       // fade brightness all LEDs one step
       for(int i=0; i<NUM_LEDS; i++) {
         if (random(10)>5) { //Random trail decay
@@ -424,16 +430,20 @@ void checkMeteorRainString() {
       offset=0;
     }
 
-    FastLED.show();
-    waveTime = currentTime;
+    //A bit of a hack: only show when strips>1, the sparkles will be next!
+    //Better would be to return false/true and do these settings in the main loop
+    if (strips>1) {
+      FastLED.show();
+      waveTime = currentTime;
+    }
   }
 
 }
 
-void checkSparklesString() {
+void checkSparklesString(int strips) {
   if ((currentTime - waveTime) > 10) {
 
-    for (int x=0; x<NUM_STRIPS; x++) {
+    for (int x=strips; x<NUM_STRIPS; x++) {
       // fade brightness all LEDs one step
       for(int i=0; i<NUM_LEDS; i++) {
         if (random(10)>5) { //Random trail decay
@@ -442,7 +452,7 @@ void checkSparklesString() {
       }
 
       // Draw sparkles
-      for (int i=0; i < 5; i++) { //5 new sparkles...
+      for (int i=0; i < 4; i++) { //4 new sparkles...
         int j = random(NUM_LEDS);
         leds[x][j].setRGB(255,255,255);
       }
