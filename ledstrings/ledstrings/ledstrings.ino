@@ -85,19 +85,22 @@ int ledStatus = LEDS_ON;
 #define MODE_STAIRCASE 6
 #define MODE_FIRE 7
 #define MODE_METEOR 8
+#define MODE_SPARKLES 9
 int ledMode = MODE_DISCRETE;
 
 #define FACT_DARK 0
 #define FACT_NIGHT 1
 #define FACT_DAY 2
 #define FACT_DAWN 3
+#define FACT_NEWYEAR 4
 int factStatus = FACT_DARK;
 
 const char STR_DARK[] PROGMEM = "It's dark";
 const char STR_NIGHT[] PROGMEM = "It's night";
 const char STR_DAY[] PROGMEM = "It's daytime";
 const char STR_DAWN[] PROGMEM = "It's dawn";
-const char * const FACTSTR[4] = {STR_DARK,STR_NIGHT,STR_DAY,STR_DAWN};
+const char STR_NEWYEAR[] PROGMEM = "New Year!";
+const char * const FACTSTR[5] = {STR_DARK,STR_NIGHT,STR_DAY,STR_DAWN,STR_NEWYEAR};
 
 void setupWiFi() {
   #ifdef SERIAL_ON
@@ -495,6 +498,7 @@ void sendHomepageBody() {
   printOption("mode","Staircase",MODE_STAIRCASE,ledMode);
   printOption("mode","Fire",MODE_FIRE,ledMode);
   printOption("mode","Meteor",MODE_METEOR,ledMode);
+  printOption("mode","Sparkles",MODE_SPARKLES,ledMode);
   printDiv(true,true);
   client.print(F("<label class=\"form-label\" for=\"brightness\">Brightness</label>"));
   client.print(F("<input type=\"range\" class=\"form-range\" name=\"brightness\" id=\"brightness\" min=\"0\" max=\"255\" value=\""));

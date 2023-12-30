@@ -96,6 +96,9 @@ void initLEDs() {
           initLEDsOff();
           offset = 0;
           break;
+        case MODE_SPARKLES:
+          initLEDsOff();
+          break;
         default:
           initLEDSYellowFlow();
           break;
@@ -133,6 +136,10 @@ void updateLEDs() {
           break;
         case MODE_METEOR:
           checkMeteorRainString();
+          break;
+        case MODE_SPARKLES:
+          checkSparklesString();
+          break;
         case MODE_NL:
         case MODE_RAINBOW:
         default:
@@ -403,8 +410,8 @@ void checkMeteorRainString() {
       // draw meteor
       for(int i = 0; i < CONFIG_METEORSIZE; i++) {
         if( ( offset-i <NUM_LEDS) && (offset-i>=0) ) {
-          if ((offset - CONFIG_METEORSIZE) < NUM_LEDS) {
-            leds[x][offset-i].setRGB(128, 64, 32); //Set different RGB for different meteor color
+          if ((offset + CONFIG_METEORSIZE) < NUM_LEDS) {
+            leds[x][offset-i].setRGB(64, 10, 0); //Set different RGB for different meteor color
           } else {
             leds[x][offset-i].setRGB(255, 255, 255); //At the top - brightest setting
           }
@@ -421,4 +428,28 @@ void checkMeteorRainString() {
     waveTime = currentTime;
   }
 
+}
+
+void checkSparklesString() {
+  if ((currentTime - waveTime) > 10) {
+
+    for (int x=0; x<NUM_STRIPS; x++) {
+      // fade brightness all LEDs one step
+      for(int i=0; i<NUM_LEDS; i++) {
+        if (random(10)>5) { //Random trail decay
+          leds[x][i].fadeToBlackBy(CONFIG_TRAILDECAY); //Reuse from meteor rain
+        }
+      }
+
+      // Draw sparkles
+      for (int i=0; i < 5; i++) { //5 new sparkles...
+        int j = random(NUM_LEDS);
+        leds[x][j].setRGB(255,255,255);
+      }
+
+    }
+
+    FastLED.show();
+    waveTime = currentTime;
+  }
 }
