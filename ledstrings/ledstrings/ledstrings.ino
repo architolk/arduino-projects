@@ -318,7 +318,7 @@ void updateLedStatus() {
       #ifdef SERIAL_ON
       Serial.println("Time to sleep - Leds are dimmed");
       #endif
-      if ((currentRTCTime.getDayOfMonth()==31) && (currentRTCTime.getMonth()==Month::DECEMBER) && (currentMinutes>=0) && (currentMinutes<=30)) {
+      if ((currentRTCTime.getDayOfMonth()==1) && (currentRTCTime.getMonth()==Month::JANUARY) && (currentMinutes>=0) && (currentMinutes<=30)) {
         //Special situation: new year! 30 minutes of fireworks!
         #ifdef SERIAL_ON
         Serial.println("New year!");
@@ -335,6 +335,10 @@ void updateLedStatus() {
         //Normal night situation
         if (factStatus!=FACT_NIGHT) {
           factStatus = FACT_NIGHT;
+          //Reset ledMode when fireworks!
+          if (ledMode==MODE_FIREWORKS) {
+            ledMode = MODE_DISCRETE;
+          }
           if (ledStatus!=LEDS_DIMMED) {
             ledStatus = LEDS_DIMMED;
             initLEDs();
