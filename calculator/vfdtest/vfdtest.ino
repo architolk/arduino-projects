@@ -1,5 +1,6 @@
 // vfdtest - first test for the VFD
 // Based on work by qrt@qland.de
+// See: https://github.com/qrti/VFD-HCS-12SS59T
 
 #include "VFD.h"
 
