@@ -5,14 +5,21 @@
 #include <EPDCanvas.h>
 #include "src/Fonts/FreeSansBold8pt7b.h"
 #include "src/Fonts/FreeSansBold16pt7b.h"
-#include "src/Fonts/FreeSans12pt7b.h"
+#include "src/Fonts/FreeSans10pt7b.h"
 #include "src/Fonts/FreeSans16pt7b.h"
+#include "src/Fonts/FreeSans18pt7b.h"
 #include "src/Fonts/FreeSans20pt7b.h"
+#include "src/Fonts/FreeSans30pt7b.h"
 #include "src/Fonts/WeatherIcons26pt7b.h"
 #include "src/Fonts/WeatherIcons36pt7b.h"
+#include "src/Fonts/WeatherIcons50pt7b.h"
 
 //Uncomment this to keep the display state persistant (the display won't be cleared, leaving the last image behind - not recommended if e-Paper is stored)
 //#define KEEP_DISPLAY_STATE
+
+//Uncomment the screen you want to display
+#define SCREEN_TOP
+//#define SCREEN_BOTTOM
 
 void setup() {
   pinMode(2, OUTPUT); //Set LED pin to output
@@ -43,6 +50,74 @@ void setup() {
 
     canvas.setTextColor(0, 1); // black text, white background
 
+#ifdef SCREEN_TOP
+
+  canvas.setFont(&FreeSans30pt7b);
+  canvas.drawText(20,55,"12");
+  canvas.setFont(&FreeSans16pt7b);
+  canvas.drawText(100,38,"November");
+  canvas.setFont(&FreeSans18pt7b);
+  canvas.drawText(30,100,"Dinsdag");
+
+  canvas.setFont(&FreeSansBold8pt7b);
+  canvas.drawText(40,180,"MA",1);
+  canvas.drawText(70,180,"DI",1);
+  canvas.drawText(100,180,"WO",1);
+  canvas.drawText(130,180,"DO",1);
+  canvas.drawText(160,180,"VR",1);
+  canvas.drawText(190,180,"ZA",1);
+  canvas.drawText(220,180,"ZO",1);
+  canvas.drawLine(28,185,230,185,0);
+
+  int daynum = 1; //All months start with day 1
+  int startdow = 4; //The start day-of-week for that month
+  int endday = 30; //The last day of the month (28, 29, 30 or 31 - depending on the month and year)
+  for (int j=0; j<5; j++) {
+    for (int i=0; i<7; i++) {
+      if (((j>0) || (i>=startdow)) && (daynum<=endday)) {
+        canvas.drawText(40+i*30,200+j*20,String(daynum),1);
+        daynum++;
+      }
+    }
+  }
+
+  canvas.setFont(&FreeSans10pt7b);
+  canvas.drawText(30,340,"MIN");
+  canvas.setFont(&FreeSans18pt7b);
+  canvas.drawText(90,350,"18");
+  canvas.setFont(&FreeSansBold8pt7b);
+  canvas.drawText(canvas.getCursorX(),337,"o"); //Degrees symbol
+  canvas.setFont(&FreeSans10pt7b);
+  canvas.drawText(30,370,"MAX");
+  canvas.setFont(&FreeSans18pt7b);
+  canvas.drawText(90,380,"24");
+  canvas.setFont(&FreeSansBold8pt7b);
+  canvas.drawText(canvas.getCursorX(),367,"o"); //Degrees symbol
+
+  canvas.setFont(&WeatherIcons50pt7b);
+  canvas.drawText(180,365,"B",1);
+
+  canvas.setFont(&FreeSansBold8pt7b);
+  canvas.drawText(180,380,"8mm",1);
+
+  canvas.setFont(&FreeSans10pt7b);
+  canvas.drawTextRect(30,410,180,20,"onweer en storm op komst verwacht");
+
+  canvas.fillRect(260,10,5,455,0);
+
+  canvas.fillRect(328,16,2,200,0);
+  canvas.setFont(&FreeSans16pt7b);
+  canvas.drawText(320,40,"12",2);
+  canvas.setFont(&FreeSans10pt7b);
+  canvas.drawText(320,60,"DI",2);
+  canvas.fillCircle(350,32,12,0);
+
+  canvas.setFont(&FreeSans10pt7b);
+  canvas.drawText(370,40,"school");
+
+#endif
+
+#ifdef SCREEN_BOTTOM
     canvas.setFont(&FreeSansBold16pt7b);
     canvas.drawText(40,25,"3:00");
     canvas.drawText(200,25,"7:00");
@@ -86,6 +161,9 @@ void setup() {
       }
     }
 
+    canvas.setFont(&FreeSans10pt7b);
+    canvas.drawText(350,190,"oma");
+
     canvas.setFont(&WeatherIcons26pt7b);
     for (int i = 0; i <7; i++) {
       canvas.setCursor(1+113*i,300);
@@ -98,6 +176,7 @@ void setup() {
       canvas.setCursor(50+113*i,300);
       canvas.print("8 mm");
     }
+#endif
 
     // done drawing, so send it off to the display
     EPD_7IN5B_V2_WriteCanvas(_can, 0);

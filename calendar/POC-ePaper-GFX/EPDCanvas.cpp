@@ -2,6 +2,7 @@
 
 #include "EPDCanvas.h"
 #include <math.h>
+#include "StringTokenizer.h"
 
 uint16_t EPDCanvas::getWidth(const String &str) {
   int16_t x1;
@@ -25,6 +26,19 @@ void EPDCanvas::drawText(int16_t x, int16_t y, const String &str, uint16_t align
     }
   }
   print(str);
+}
+
+void EPDCanvas::drawTextRect(int16_t x, int16_t y, uint16_t w, uint16_t h, const String &str) {
+  StringTokenizer words(str," ");
+  setCursor(x,y);
+  while (words.hasNext()) {
+    String word = words.nextToken();
+    int16_t newX = getCursorX() - x + getWidth(word);
+    if ((getCursorX()+getWidth(word))>(w+x)) {
+      setCursor(x,getCursorY()+h); //Line feed
+    }
+    print(word+" ");
+  }
 }
 
 void EPDCanvas::fillRotatedTriangle(int cx, int cy, int r, float angleDeg) {
