@@ -1,19 +1,9 @@
+#include <time.h>
+
 #include "src/e-Paper/DEV_Tools.h"
 #include "src/e-Paper/EInkDisplay.h"
-#include "src/Graphics/EPDCanvas.h"
+#include "EPDCalendarCanvas.h"
 #include "Config.h"
-
-#include "src/Fonts/FreeSansBold8pt7b.h"
-#include "src/Fonts/FreeSansBold16pt7b.h"
-#include "src/Fonts/FreeSans10pt7b.h"
-#include "src/Fonts/FreeSans12pt7b.h"
-#include "src/Fonts/FreeSans16pt7b.h"
-#include "src/Fonts/FreeSans18pt7b.h"
-#include "src/Fonts/FreeSans20pt7b.h"
-#include "src/Fonts/FreeSans30pt7b.h"
-#include "src/Fonts/WeatherIcons26pt7b.h"
-#include "src/Fonts/WeatherIcons36pt7b.h"
-#include "src/Fonts/WeatherIcons50pt7b.h"
 
 //Uncomment this to keep the display state persistant (the display won't be cleared, leaving the last image behind - not recommended if e-Paper is stored)
 //#define KEEP_DISPLAY_STATE
@@ -22,8 +12,11 @@
 EInkDisplay TopDisplay(TOP_PIN_CS, TOP_PIN_DC, TOP_PIN_RST, TOP_PIN_BUSY, TOP_PIN_PWR);;
 EInkDisplay BottomDisplay(BOTTOM_PIN_CS, BOTTOM_PIN_DC, BOTTOM_PIN_RST, BOTTOM_PIN_BUSY, BOTTOM_PIN_PWR);;
 
-//Canvas
-EPDCanvas canvas(EPD_7IN5B_V2_WIDTH, EPD_7IN5B_V2_HEIGHT);
+//CalendarCanvas
+EPDCalendarCanvas canvas(EPD_7IN5B_V2_WIDTH, EPD_7IN5B_V2_HEIGHT);
+
+//Current time stuff
+struct tm CurrentTimeInfo;
 
 void initialize() {
   pinMode(LED_PIN_ESP32, OUTPUT); //Set LED pin to output
@@ -51,13 +44,7 @@ void updateTopDisplay() {
   canvas.fillScreen(1);      // fill background
   canvas.setTextColor(0, 1); // black text, white background
 
-  //Just a small piece of the action
-  canvas.setFont(&FreeSans30pt7b);
-  canvas.drawText(4,55,"22");
-  canvas.setFont(&FreeSans16pt7b);
-  canvas.drawText(80,38,"November");
-  canvas.setFont(&FreeSans18pt7b);
-  canvas.drawText(4,100,"Woensdag");
+  canvas.displayDateInfo(&CurrentTimeInfo);
 
   // done drawing, so send it off to the display
   TopDisplay.writeCanvas(&canvas, EPD_BLACK_WHITE_LAYER);
@@ -90,6 +77,46 @@ void updateTopDisplay() {
 
 }
 
+void setTimezone(String timezone) {
+  Serial.printf("  Setting Timezone to %s\n",timezone.c_str());
+  setenv("TZ",timezone.c_str(),1);  //  Now adjust the TZ.  Clock settings are adjusted to show the new local time
+  tzset();
+}
+
+void setTime(int yr, int month, int mday, int hr, int minute, int sec, int isDst) {
+
+  struct tm tm;
+  tm.tm_year = yr - 1900;   // Set date
+  tm.tm_mon = month-1;
+  tm.tm_mday = mday;
+  tm.tm_hour = hr;      // Set time
+  tm.tm_min = minute;
+  tm.tm_sec = sec;
+  tm.tm_isdst = isDst;  // 1 or 0
+  time_t t = mktime(&tm);
+  Serial.printf("Setting time: %s", asctime(&tm));
+  struct timeval now = { .tv_sec = t };
+  settimeofday(&now, NULL);
+}
+
+void setupTime() {
+  //We should get the time from the ntp timeserver first!
+  setTimezone("CET-1CEST,M3.5.0,M10.5.0/3"); //Amsterdam
+  setTime(2025,6,30,21,20,0,0); //11-22-2025 21:20:00 No daylight saving time - but can this not be done automatically?
+
+  if(!getLocalTime(&CurrentTimeInfo)){
+    Serial.println("Failed to obtain time - set default value");
+    CurrentTimeInfo.tm_year = 2025 - 1900;   // Set date
+    CurrentTimeInfo.tm_mon = 6-1;
+    CurrentTimeInfo.tm_mday = 30;
+    CurrentTimeInfo.tm_hour = 21;      // Set time
+    CurrentTimeInfo.tm_min = 20;
+    CurrentTimeInfo.tm_sec = 0;
+    CurrentTimeInfo.tm_isdst = 1;  // 1 or 0
+  }
+
+}
+
 void setup() {
 
   //Serial - for debugging only
@@ -99,6 +126,7 @@ void setup() {
     Serial.print("ERROR: Could not allocate buffer for GFXcanvas1\r\n");
   } else {
     initialize();
+    setupTime();
     updateTopDisplay();
   }
 
