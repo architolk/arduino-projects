@@ -6,6 +6,7 @@
 #include "src/Fonts/FreeSansBold8pt7b.h"
 #include "src/Fonts/FreeSansBold16pt7b.h"
 #include "src/Fonts/FreeSans10pt7b.h"
+#include "src/Fonts/FreeSans12pt7b.h"
 #include "src/Fonts/FreeSans16pt7b.h"
 #include "src/Fonts/FreeSans18pt7b.h"
 #include "src/Fonts/FreeSans20pt7b.h"
@@ -53,21 +54,21 @@ void setup() {
 #ifdef SCREEN_TOP
 
   canvas.setFont(&FreeSans30pt7b);
-  canvas.drawText(20,55,"12");
+  canvas.drawText(4,55,"22");
   canvas.setFont(&FreeSans16pt7b);
-  canvas.drawText(100,38,"November");
+  canvas.drawText(80,38,"November");
   canvas.setFont(&FreeSans18pt7b);
-  canvas.drawText(30,100,"Dinsdag");
+  canvas.drawText(4,100,"Woensdag");
 
   canvas.setFont(&FreeSansBold8pt7b);
-  canvas.drawText(40,180,"MA",1);
-  canvas.drawText(70,180,"DI",1);
-  canvas.drawText(100,180,"WO",1);
-  canvas.drawText(130,180,"DO",1);
-  canvas.drawText(160,180,"VR",1);
-  canvas.drawText(190,180,"ZA",1);
-  canvas.drawText(220,180,"ZO",1);
-  canvas.drawLine(28,185,230,185,0);
+  canvas.drawText(20,150,"MA",1);
+  canvas.drawText(50,150,"DI",1);
+  canvas.drawText(80,150,"WO",1);
+  canvas.drawText(110,150,"DO",1);
+  canvas.drawText(140,150,"VR",1);
+  canvas.drawText(170,150,"ZA",1);
+  canvas.drawText(200,150,"ZO",1);
+  canvas.drawLine(5,155,215,155,0);
 
   int daynum = 1; //All months start with day 1
   int startdow = 4; //The start day-of-week for that month
@@ -75,45 +76,83 @@ void setup() {
   for (int j=0; j<5; j++) {
     for (int i=0; i<7; i++) {
       if (((j>0) || (i>=startdow)) && (daynum<=endday)) {
-        canvas.drawText(40+i*30,200+j*20,String(daynum),1);
+        canvas.drawText(20+i*30,170+j*20,String(daynum),1);
         daynum++;
       }
     }
   }
 
   canvas.setFont(&FreeSans10pt7b);
-  canvas.drawText(30,340,"MIN");
+  canvas.drawText(10,310,"MIN");
   canvas.setFont(&FreeSans18pt7b);
-  canvas.drawText(90,350,"18");
+  canvas.drawText(65,320,"18");
   canvas.setFont(&FreeSansBold8pt7b);
-  canvas.drawText(canvas.getCursorX(),337,"o"); //Degrees symbol
+  canvas.drawText(canvas.getCursorX(),305,"o"); //Degrees symbol
   canvas.setFont(&FreeSans10pt7b);
-  canvas.drawText(30,370,"MAX");
+  canvas.drawText(10,350,"MAX");
   canvas.setFont(&FreeSans18pt7b);
-  canvas.drawText(90,380,"24");
+  canvas.drawText(65,360,"24");
   canvas.setFont(&FreeSansBold8pt7b);
-  canvas.drawText(canvas.getCursorX(),367,"o"); //Degrees symbol
+  canvas.drawText(canvas.getCursorX(),335,"o"); //Degrees symbol
 
   canvas.setFont(&WeatherIcons50pt7b);
-  canvas.drawText(180,365,"B",1);
+  canvas.drawText(120,355,"B");
 
   canvas.setFont(&FreeSansBold8pt7b);
-  canvas.drawText(180,380,"8mm",1);
+  canvas.drawText(170,370,"8 mm",1);
 
   canvas.setFont(&FreeSans10pt7b);
-  canvas.drawTextRect(30,410,180,20,"onweer en storm op komst verwacht");
+  canvas.drawTextRect(10,420,220,20,"onweer en storm op a a a a komst verwacht");
 
-  canvas.fillRect(260,10,5,455,0);
+  canvas.fillRect(240,10,5,455,0);
 
-  canvas.fillRect(328,16,2,200,0);
+  canvas.fillRect(308,16,2,200,0);
   canvas.setFont(&FreeSans16pt7b);
-  canvas.drawText(320,40,"12",2);
+  canvas.drawText(298,40,"12",2);
   canvas.setFont(&FreeSans10pt7b);
-  canvas.drawText(320,60,"DI",2);
-  canvas.fillCircle(350,32,12,0);
+  canvas.drawText(298,60,"DI",2);
 
+  //Item
+  canvas.fillCircle(390,28,10,0);
+  canvas.setTextColor(1, 0); // white text, black background
+  canvas.setFont(&FreeSansBold8pt7b);
+  canvas.drawText(390,34,"J",1);
+  canvas.setTextColor(0, 1); // black text, white background
   canvas.setFont(&FreeSans10pt7b);
-  canvas.drawText(370,40,"school");
+  canvas.drawText(405,36,"school");
+  canvas.setFont(&FreeSans12pt7b);
+  canvas.drawText(370,36,"8:30",2);
+  canvas.setFont(&FreeSansBold8pt7b);
+  canvas.drawText(370,54,"14:15",2);
+  canvas.drawTimeRect(380,48,8,30,14,15);
+
+  //Item
+  canvas.fillCircle(390,78,10,0);
+  canvas.setTextColor(1, 0); // white text, black background
+  canvas.setFont(&FreeSansBold8pt7b);
+  canvas.drawText(390,84,"R",1);
+  canvas.setTextColor(0, 1); // black text, white background
+  canvas.setFont(&FreeSans10pt7b);
+  canvas.drawText(405,86,"school");
+  canvas.setFont(&FreeSans12pt7b);
+  canvas.drawText(370,86,"8:30",2);
+  canvas.setFont(&FreeSansBold8pt7b);
+  canvas.drawText(370,104,"14:15",2);
+  canvas.drawTimeRect(380,98,8,30,14,15);
+
+  //Item
+  canvas.fillCircle(390,128,10,0);
+  canvas.setTextColor(1, 0); // white text, black background
+  canvas.setFont(&FreeSansBold8pt7b);
+  canvas.drawText(390,134,"N",1);
+  canvas.setTextColor(0, 1); // black text, white background
+  canvas.setFont(&FreeSans10pt7b);
+  canvas.drawText(405,136,"kantoor");
+  canvas.setFont(&FreeSans12pt7b);
+  canvas.drawText(370,136,"8:00",2);
+  canvas.setFont(&FreeSansBold8pt7b);
+  canvas.drawText(370,154,"17:00",2);
+  canvas.drawTimeRect(380,148,8,00,17,0);
 
 #endif
 

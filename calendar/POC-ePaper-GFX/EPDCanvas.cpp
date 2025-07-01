@@ -67,3 +67,16 @@ void EPDCanvas::fillRotatedTriangle(int cx, int cy, int r, float angleDeg) {
   //We want to have the center of the triangle at the cx,cy position, so compensate:
   fillTriangle(x0+cx-gx,y0+cy-gy,x1+cx-gx,y1+cy-gy,x2+cx-gx,y2+cy-gy,0); //Expect 0 as color
 }
+
+#define TIMERECT_ENDPIXEL 790 //Size of the display minus margin
+#define TIMERECT_MAXWIDTH 800 //Size of the display
+#define TIMERECT_HEIGHT 6
+#define TIMERECT_START 420 //7:00
+#define TIMERECT_END  1380 //23:00
+void EPDCanvas::drawTimeRect(int16_t x, int16_t y, uint16_t hs, uint16_t ms, uint16_t he, uint16_t me) {
+  uint16_t width = TIMERECT_ENDPIXEL - x;
+  drawRect(x,y,width,TIMERECT_HEIGHT,0);
+  uint16_t xstart = x+(hs*60+ms-TIMERECT_START)*width/(TIMERECT_END-TIMERECT_START);
+  uint16_t xend = x+(he*60+me-TIMERECT_START)*width/(TIMERECT_END-TIMERECT_START);
+  fillRect(xstart,y,xend-xstart,TIMERECT_HEIGHT,0);
+}

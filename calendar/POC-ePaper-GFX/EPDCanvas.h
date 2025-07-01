@@ -12,5 +12,6 @@ class EPDCanvas : public GFXcanvas1 {
     void drawText(int16_t x, int16_t y, const String &str, uint16_t align = 0); //Align: 0 = left, 1 = middle, 2 = right
     void fillRotatedTriangle(int cx, int cy, int size, float angleDeg);
     void drawTextRect(int16_t x, int16_t y, uint16_t w, uint16_t h, const String &str);
+    void drawTimeRect(int16_t x, int16_t y, uint16_t hs, uint16_t ms, uint16_t he, uint16_t me);
 };
 #endif
