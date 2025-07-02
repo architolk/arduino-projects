@@ -86,8 +86,12 @@ void EPDCalendarCanvas::displayMonthInfo(struct tm * timeinfo) {
 }
 
 void EPDCalendarCanvas::displayMonthInfoCurrentDay(struct tm * timeinfo) {
+  int16_t xpos = 20+30*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday);
+  int16_t ypos = 170+20*getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday);
+  fillCircle(xpos,ypos-5,10,1); //Red filling
+  setTextColor(0, 1); //Red background, white text
   setFont(&FreeSansBold8pt7b);
-  drawText(20+30*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday),170+20*getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday),String(timeinfo->tm_mday),1);
+  drawText(xpos,ypos,String(timeinfo->tm_mday),1);
 }
 
 void EPDCalendarCanvas::displayMinMaxTemperature(double minTemp, double maxTemp) {
@@ -138,9 +142,13 @@ void EPDCalendarCanvas::displayCalendarEvent(int mday, int wday, int hs, int ms,
   setFont(&FreeSans10pt7b);
   drawText(405,20+ypos,description);
   setFont(&FreeSans12pt7b);
-  drawText(370,20+ypos,String(hs)+":"+String(ms),2);
+  String msStr = String(ms);
+  if (msStr.length()<2) {msStr = "0"+msStr;}
+  String meStr = String(me);
+  if (meStr.length()<2) {meStr = "0"+meStr;}
+  drawText(370,20+ypos,String(hs)+":"+msStr,2);
   setFont(&FreeSansBold8pt7b);
-  drawText(370,38+ypos,String(he)+":"+String(me),2);
+  drawText(370,38+ypos,String(he)+":"+meStr,2);
   drawTimeRect(380,32+ypos,hs,ms,he,me);
   setCursor(308,ypos+50);
 }

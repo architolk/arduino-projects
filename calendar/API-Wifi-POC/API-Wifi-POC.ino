@@ -10,7 +10,6 @@
 */
 
 #include <WiFi.h>
-#include <HTTPClient.h>
 #include <secrets.h>
 
 //Your Domain name with URL path or IP address with path

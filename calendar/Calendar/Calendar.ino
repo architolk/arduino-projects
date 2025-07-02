@@ -4,6 +4,9 @@
 #include "src/e-Paper/EInkDisplay.h"
 #include "EPDCalendarCanvas.h"
 #include "Config.h"
+#include <WiFi.h>
+#include "src/APIClients/secrets.h"
+#include "src/APIClients/HACalendar.h"
 
 //Uncomment this to keep the display state persistant (the display won't be cleared, leaving the last image behind - not recommended if e-Paper is stored)
 //#define KEEP_DISPLAY_STATE
@@ -18,6 +21,9 @@ EPDCalendarCanvas canvas(EPD_7IN5B_V2_WIDTH, EPD_7IN5B_V2_HEIGHT);
 //Current time stuff
 struct tm CurrentTimeInfo;
 
+//Interface to Home Automation Calendar API
+HACalendar cal;
+
 void initialize() {
   pinMode(LED_PIN_ESP32, OUTPUT); //Set LED pin to output
   digitalWrite(LED_PIN_ESP32, LOW); // Set LED pin low, indicating that we have started!
@@ -30,12 +36,12 @@ void initialize() {
 	SPI.begin(); //Should probable to SPI.begin(SPI_PIN_SCK, SPI_PIN_MISO, SPI_PIN_MOSI)
   SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0)); //SPI pins are the default ones...
 
-  Serial.print("POC ePaper test\r\n");
+  Serial.println("e-Paper Calendar");
 }
 
 void updateTopDisplay() {
 
-  Serial.print("TopDisplay: e-Paper Init and Clear...\r\n");
+  Serial.println("TopDisplay: e-Paper activated");
   TopDisplay.activate(); //This will power on the display, and set the chip-select to this particular display
 
   //Initialize screen
@@ -53,7 +59,10 @@ void updateTopDisplay() {
   canvas.fillRect(240,10,5,455,0);
 
   canvas.setCursor(308,6); //Beginpoint of the calendar. X pos is ignored.
-  canvas.displayCalendarEvent(CurrentTimeInfo.tm_mday, CurrentTimeInfo.tm_wday, 8, 30, 14, 15, 1, "school");
+  for (int i=0; i<cal.getEntryCount(); i++) {
+    entry_t entry = cal.getEntry(0);
+    canvas.displayCalendarEvent(entry.mday, entry.wday, entry.startHour, entry.startMinute, entry.endHour, entry.endMinute, 1, String(entry.summary));
+  }
   canvas.displayCalendarEvent(CurrentTimeInfo.tm_mday, CurrentTimeInfo.tm_wday, 8, 20, 14, 15, 2, "school");
   canvas.displayCalendarEvent(CurrentTimeInfo.tm_mday, CurrentTimeInfo.tm_wday, 8, 00, 17, 00, 2, "kantoor");
   canvas.displayCalendarEvent(CurrentTimeInfo.tm_mday+1, CurrentTimeInfo.tm_wday+1, 8, 00, 17, 00, 2, "schoolfotograaf!");
@@ -64,30 +73,30 @@ void updateTopDisplay() {
   //A bit confusing, but now: 0 = White, 1 = Red
   canvas.fillScreen(0);  // fill backgrund;
 
-  canvas.setTextColor(1, 0); // Red text, white background
+  //canvas.setTextColor(1, 0); // Red text, white background
   canvas.displayMonthInfoCurrentDay(&CurrentTimeInfo);
 
   // done drawing, so send it off to the display
   // NB: You should always end with "1" even if no red layer is present (because only at "1" the display is turned on!)
   TopDisplay.writeCanvas(&canvas, EPD_WHITE_RED_LAYER);  // 1 = red layer layer
 
-  Serial.print("EPD_Display\r\n");
+  Serial.println("Display has been updated");
 
   #ifndef KEEP_DISPLAY_STATE
 
-    Serial.print("Wait 5 seconds before display is cleared\r\n");
+    Serial.println("Wait 5 seconds before display is cleared");
     DEV_Delay_ms(5000);
 
-    Serial.print("Clear...(to put the e-Paper in it's original clear screen)\r\n");
+    Serial.println("Clear...(to put the e-Paper in it's original clear screen)");
     TopDisplay.init();
     TopDisplay.clear();
   #endif
 
-  Serial.print("Goto Sleep...\r\n");
+  Serial.println("Goto Sleep...");
   TopDisplay.sleep();
 
   // close PWR
-  Serial.print("close PWR, Module enters 0 power consumption ...\r\n");
+  Serial.println("close PWR, Module enters 0 power consumption ...");
   TopDisplay.deactivate();
 
 }
@@ -138,17 +147,38 @@ void setupTime() {
 
 }
 
+boolean setupWifi() {
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.println("Connecting");
+  int count = 0;
+  while((count<40) && (WiFi.status() != WL_CONNECTED)) {
+    delay(500);
+    Serial.print(".");
+    count++;
+  }
+  if (WiFi.status()==WL_CONNECTED) {
+    cal.retrieveCalendarData(&CurrentTimeInfo);
+    return true;
+  } else {
+    return false;
+  }
+}
+
 void setup() {
 
   //Serial - for debugging only
   Serial.begin(115200);
 
   if (!canvas.getBuffer()) {
-    Serial.print("ERROR: Could not allocate buffer for GFXcanvas1\r\n");
+    Serial.println("ERROR: Could not allocate buffer for GFXcanvas1");
   } else {
     initialize();
     setupTime();
-    updateTopDisplay();
+    if (setupWifi()) {
+      updateTopDisplay();
+    } else {
+      Serial.println("Wifi not available");
+    }
   }
 
   digitalWrite(LED_PIN_ESP32, HIGH); // Set LED to high, indicating that we have finished the programm
