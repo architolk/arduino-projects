@@ -20,7 +20,6 @@
 #include "src/Fonts/WeatherIcons36pt7b.h"
 #include "src/Fonts/WeatherIcons50pt7b.h"
 
-
 class EPDCalendarCanvas : public EPDCanvas {
   public:
     EPDCalendarCanvas(uint16_t w, uint16_t h) : EPDCanvas(w, h){};
@@ -30,7 +29,11 @@ class EPDCalendarCanvas : public EPDCanvas {
     void displayMinMaxTemperature(double minTemp, double maxTemp);
     void displayForecast(const String &forecase);
     void displayWeatherIconRain(char icon, double rain);
+    void displayCalendarEvent(int mday, int wday, int hs, int ms, int he, int me, int type, const String &description);
   protected:
+    static constexpr char *DAYSOFWEEK[] = {"ZO","MA","DI","WO","DO","VR","ZA"};
+    int dayCursor = 0; //Used to check if a new day has arrived, or still in the current day
+
     void printDayOfWeek(int wday);
     void printMonth(int mon);
     int getDayColumn(int wday, int mday, int day);

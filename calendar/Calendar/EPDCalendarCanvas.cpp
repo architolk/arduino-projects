@@ -118,3 +118,29 @@ void EPDCalendarCanvas::displayWeatherIconRain(char icon, double rain) {
   setFont(&FreeSansBold8pt7b);
   drawText(178,370,String(rain,1)+" mm",1);
 }
+
+void EPDCalendarCanvas::displayCalendarEvent(int mday, int wday, int hs, int ms, int he, int me, int type, const String &description) {
+  int16_t ypos = getCursorY(); //16 (-10) standaard
+  if (mday!=dayCursor) {
+    dayCursor = mday;
+    ypos+=10; //Add 10 pixels for separation between days
+    setFont(&FreeSans16pt7b);
+    drawText(298,24+ypos,String(mday),2);
+    setFont(&FreeSans10pt7b);
+    drawText(298,44+ypos,DAYSOFWEEK[wday],2);
+  }
+  fillRect(308,ypos,2,50,0);
+  fillCircle(390,12+ypos,10,0);
+  setTextColor(1, 0); // white text, black background
+  setFont(&FreeSansBold8pt7b);
+  drawText(390,18+ypos,"J",1);
+  setTextColor(0, 1); // black text, white background
+  setFont(&FreeSans10pt7b);
+  drawText(405,20+ypos,description);
+  setFont(&FreeSans12pt7b);
+  drawText(370,20+ypos,String(hs)+":"+String(ms),2);
+  setFont(&FreeSansBold8pt7b);
+  drawText(370,38+ypos,String(he)+":"+String(me),2);
+  drawTimeRect(380,32+ypos,hs,ms,he,me);
+  setCursor(308,ypos+50);
+}

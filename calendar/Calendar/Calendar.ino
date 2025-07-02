@@ -52,6 +52,12 @@ void updateTopDisplay() {
 
   canvas.fillRect(240,10,5,455,0);
 
+  canvas.setCursor(308,6); //Beginpoint of the calendar. X pos is ignored.
+  canvas.displayCalendarEvent(CurrentTimeInfo.tm_mday, CurrentTimeInfo.tm_wday, 8, 30, 14, 15, 1, "school");
+  canvas.displayCalendarEvent(CurrentTimeInfo.tm_mday, CurrentTimeInfo.tm_wday, 8, 20, 14, 15, 2, "school");
+  canvas.displayCalendarEvent(CurrentTimeInfo.tm_mday, CurrentTimeInfo.tm_wday, 8, 00, 17, 00, 2, "kantoor");
+  canvas.displayCalendarEvent(CurrentTimeInfo.tm_mday+1, CurrentTimeInfo.tm_wday+1, 8, 00, 17, 00, 2, "schoolfotograaf!");
+
   // done drawing, so send it off to the display
   TopDisplay.writeCanvas(&canvas, EPD_BLACK_WHITE_LAYER);
 
@@ -92,6 +98,7 @@ void setTimezone(String timezone) {
   tzset();
 }
 
+//Setting time using discrete entries
 void setTime(int yr, int month, int mday, int hr, int minute, int sec, int isDst) {
 
   struct tm tm;
@@ -104,7 +111,12 @@ void setTime(int yr, int month, int mday, int hr, int minute, int sec, int isDst
   tm.tm_isdst = isDst;  // 1 or 0
   time_t t = mktime(&tm);
   Serial.printf("Setting time: %s", asctime(&tm));
-  struct timeval now = { .tv_sec = t };
+  setTime(t);
+}
+
+//Setting time using epoch time
+void setTime(time_t epoch) {
+  struct timeval now = { .tv_sec = epoch };
   settimeofday(&now, NULL);
 }
 
