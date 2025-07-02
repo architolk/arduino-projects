@@ -25,8 +25,16 @@ class EPDCalendarCanvas : public EPDCanvas {
   public:
     EPDCalendarCanvas(uint16_t w, uint16_t h) : EPDCanvas(w, h){};
     void displayDateInfo(struct tm * timeinfo);
+    void displayMonthInfo(struct tm * timeinfo);
+    void displayMonthInfoCurrentDay(struct tm * timeinfo);
+    void displayMinMaxTemperature(double minTemp, double maxTemp);
+    void displayForecast(const String &forecase);
+    void displayWeatherIconRain(char icon, double rain);
   protected:
     void printDayOfWeek(int wday);
     void printMonth(int mon);
+    int getDayColumn(int wday, int mday, int day);
+    int getDayRow(int wday, int mday, int day);
+    int getLastDayOfMonth(int mon, int year);
 };
 #endif

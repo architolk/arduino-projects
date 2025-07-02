@@ -45,12 +45,21 @@ void updateTopDisplay() {
   canvas.setTextColor(0, 1); // black text, white background
 
   canvas.displayDateInfo(&CurrentTimeInfo);
+  canvas.displayMonthInfo(&CurrentTimeInfo);
+  canvas.displayMinMaxTemperature(15.6, 26.2);
+  canvas.displayForecast("we verwachten ongelovelijk mooi weer!");
+  canvas.displayWeatherIconRain('B', 2.3);
+
+  canvas.fillRect(240,10,5,455,0);
 
   // done drawing, so send it off to the display
   TopDisplay.writeCanvas(&canvas, EPD_BLACK_WHITE_LAYER);
 
   //A bit confusing, but now: 0 = White, 1 = Red
   canvas.fillScreen(0);  // fill backgrund;
+
+  canvas.setTextColor(1, 0); // Red text, white background
+  canvas.displayMonthInfoCurrentDay(&CurrentTimeInfo);
 
   // done drawing, so send it off to the display
   // NB: You should always end with "1" even if no red layer is present (because only at "1" the display is turned on!)

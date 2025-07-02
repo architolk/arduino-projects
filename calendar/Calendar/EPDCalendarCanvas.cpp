@@ -39,3 +39,82 @@ void EPDCalendarCanvas::displayDateInfo(struct tm * timeinfo) {
   setCursor(4,100);
   printDayOfWeek(timeinfo->tm_wday);
 }
+
+int EPDCalendarCanvas::getDayColumn(int wday, int mday, int day) {
+  int corwday = (wday==0 ? 6 : (wday-1));
+  return (35+day-mday+corwday) % 7;
+}
+
+int EPDCalendarCanvas::getDayRow(int wday, int mday, int day) {
+  return (day+5-getDayColumn(wday,mday,day)) / 7;
+}
+
+int EPDCalendarCanvas::getLastDayOfMonth(int mon, int year) {
+  switch (mon) {
+    case 0: return 31; break;
+    case 1: return ((((year % 400)==0) || (((year % 4)==0) && ((year % 100)!=0))) ? 29: 28); break;
+    case 2: return 31; break;
+    case 3: return 30; break;
+    case 4: return 31; break;
+    case 5: return 30; break;
+    case 6: return 31; break;
+    case 7: return 31; break;
+    case 8: return 30; break;
+    case 9: return 31; break;
+    case 10: return 30; break;
+    case 11: return 31; break;
+    default: return 0; break;
+  }
+}
+
+void EPDCalendarCanvas::displayMonthInfo(struct tm * timeinfo) {
+  setFont(&FreeSansBold8pt7b);
+  drawText(20,150,"MA",1);
+  drawText(50,150,"DI",1);
+  drawText(80,150,"WO",1);
+  drawText(110,150,"DO",1);
+  drawText(140,150,"VR",1);
+  drawText(170,150,"ZA",1);
+  drawText(200,150,"ZO",1);
+  drawLine(5,155,215,155,0);
+
+  for (int day=1; day<=getLastDayOfMonth(timeinfo->tm_mon, timeinfo->tm_year); day++) {
+    if ((timeinfo->tm_mday-day)!=0) { //Don't draw the current day, that day will be in RED
+      drawText(20+30*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,day),170+20*getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,day),String(day),1);
+    }
+  }
+}
+
+void EPDCalendarCanvas::displayMonthInfoCurrentDay(struct tm * timeinfo) {
+  setFont(&FreeSansBold8pt7b);
+  drawText(20+30*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday),170+20*getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday),String(timeinfo->tm_mday),1);
+}
+
+void EPDCalendarCanvas::displayMinMaxTemperature(double minTemp, double maxTemp) {
+  setFont(&FreeSans10pt7b);
+  drawText(5,310,"MIN");
+  setFont(&FreeSans18pt7b);
+  drawText(55,320,String(minTemp,1));
+  setFont(&FreeSansBold8pt7b);
+  drawText(getCursorX(),305,"o"); //Degrees symbol
+  setFont(&FreeSans10pt7b);
+  drawText(5,350,"MAX");
+  setFont(&FreeSans18pt7b);
+  drawText(55,360,String(maxTemp,1));
+  setFont(&FreeSansBold8pt7b);
+  drawText(getCursorX(),345,"o"); //Degrees symbol
+}
+
+void EPDCalendarCanvas::displayForecast(const String &forecase) {
+  setFont(&FreeSans10pt7b);
+  drawTextRect(10,420,220,20,forecase);
+}
+
+void EPDCalendarCanvas::displayWeatherIconRain(char icon, double rain) {
+  setFont(&WeatherIcons50pt7b);
+  setCursor(130,355);
+  print(icon);
+
+  setFont(&FreeSansBold8pt7b);
+  drawText(178,370,String(rain,1)+" mm",1);
+}
