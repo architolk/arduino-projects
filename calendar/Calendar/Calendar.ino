@@ -7,6 +7,7 @@
 #include <WiFi.h>
 #include "src/APIClients/secrets.h"
 #include "src/APIClients/HACalendar.h"
+#include "src/APIClients/Weerlive.h"
 
 //Uncomment this to keep the display state persistant (the display won't be cleared, leaving the last image behind - not recommended if e-Paper is stored)
 //#define KEEP_DISPLAY_STATE
@@ -23,6 +24,8 @@ struct tm CurrentTimeInfo;
 
 //Interface to Home Automation Calendar API
 HACalendar cal;
+//Interface to Weerlive API
+Weerlive weather;
 
 void initialize() {
   pinMode(LED_PIN_ESP32, OUTPUT); //Set LED pin to output
@@ -50,11 +53,13 @@ void updateTopDisplay() {
   canvas.fillScreen(1);      // fill background
   canvas.setTextColor(0, 1); // black text, white background
 
+  dayWeather_t dayw = weather.getDayWeather(0);
+
   canvas.displayDateInfo(&CurrentTimeInfo);
   canvas.displayMonthInfo(&CurrentTimeInfo);
-  canvas.displayMinMaxTemperature(15.6, 26.2);
-  canvas.displayForecast("we verwachten ongelovelijk mooi weer!");
-  canvas.displayWeatherIconRain('B', 2.3);
+  canvas.displayMinMaxTemperature(dayw.min_temp, dayw.max_temp);
+  canvas.displayForecast(weather.getForecast());
+  canvas.displayWeatherIconRain(dayw.image, dayw.neersl_perc_dag);
 
   canvas.fillRect(240,10,5,455,0);
 
@@ -132,7 +137,14 @@ void setTime(time_t epoch) {
 void setupTime() {
   //We should get the time from the ntp timeserver first!
   setTimezone("CET-1CEST,M3.5.0,M10.5.0/3"); //Amsterdam
-  setTime(2025,6,30,21,20,0,0); //11-22-2025 21:20:00 No daylight saving time - but can this not be done automatically?
+  time_t epoch = weather.getTimestamp();
+  if (epoch > 1751095685) {//It needs to be a timestamp after the compiletime of this routine!
+    setTime(weather.getTimestamp());
+  } else {
+    //Fallback
+    Serial.println("Failed to get timestamp from weather API, use default value");
+    setTime(2025,6,30,21,20,0,0); //11-22-2025 21:20:00 No daylight saving time - but can this not be done automatically?
+  }
 
   if(!getLocalTime(&CurrentTimeInfo)){
     Serial.println("Failed to obtain time - set default value");
@@ -158,6 +170,7 @@ boolean setupWifi() {
   }
   if (WiFi.status()==WL_CONNECTED) {
     cal.retrieveCalendarData(&CurrentTimeInfo);
+    weather.retrieveWeatherData();
     return true;
   } else {
     return false;
@@ -173,8 +186,8 @@ void setup() {
     Serial.println("ERROR: Could not allocate buffer for GFXcanvas1");
   } else {
     initialize();
-    setupTime();
     if (setupWifi()) {
+      setupTime();
       updateTopDisplay();
     } else {
       Serial.println("Wifi not available");

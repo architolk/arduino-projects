@@ -76,7 +76,7 @@ void EPDCalendarCanvas::displayMonthInfo(struct tm * timeinfo) {
   drawText(140,150,"VR",1);
   drawText(170,150,"ZA",1);
   drawText(200,150,"ZO",1);
-  drawLine(5,155,215,155,0);
+  drawLine(5,154,215,154,0);
 
   for (int day=1; day<=getLastDayOfMonth(timeinfo->tm_mon, timeinfo->tm_year); day++) {
     if ((timeinfo->tm_mday-day)!=0) { //Don't draw the current day, that day will be in RED
@@ -94,17 +94,17 @@ void EPDCalendarCanvas::displayMonthInfoCurrentDay(struct tm * timeinfo) {
   drawText(xpos,ypos,String(timeinfo->tm_mday),1);
 }
 
-void EPDCalendarCanvas::displayMinMaxTemperature(double minTemp, double maxTemp) {
+void EPDCalendarCanvas::displayMinMaxTemperature(int minTemp, int maxTemp) {
   setFont(&FreeSans10pt7b);
   drawText(5,310,"MIN");
   setFont(&FreeSans18pt7b);
-  drawText(55,320,String(minTemp,1));
+  drawText(55,320,String(minTemp));
   setFont(&FreeSansBold8pt7b);
   drawText(getCursorX(),305,"o"); //Degrees symbol
   setFont(&FreeSans10pt7b);
   drawText(5,350,"MAX");
   setFont(&FreeSans18pt7b);
-  drawText(55,360,String(maxTemp,1));
+  drawText(55,360,String(maxTemp));
   setFont(&FreeSansBold8pt7b);
   drawText(getCursorX(),345,"o"); //Degrees symbol
 }
@@ -114,13 +114,13 @@ void EPDCalendarCanvas::displayForecast(const String &forecase) {
   drawTextRect(10,420,220,20,forecase);
 }
 
-void EPDCalendarCanvas::displayWeatherIconRain(char icon, double rain) {
+void EPDCalendarCanvas::displayWeatherIconRain(char image, int rainperc) {
   setFont(&WeatherIcons50pt7b);
   setCursor(130,355);
-  print(icon);
+  print(image);
 
   setFont(&FreeSansBold8pt7b);
-  drawText(178,370,String(rain,1)+" mm",1);
+  drawText(178,370,String(rainperc)+"%",1);
 }
 
 void EPDCalendarCanvas::displayCalendarEvent(int mday, int wday, int hs, int ms, int he, int me, int type, const String &description) {
