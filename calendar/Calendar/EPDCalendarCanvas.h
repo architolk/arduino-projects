@@ -29,6 +29,8 @@ class EPDCalendarCanvas : public EPDCanvas {
     void displayMinMaxTemperature(int minTemp, int maxTemp);
     void displayForecast(const String &forecase);
     void displayWeatherIconRain(char image, int rainperc);
+    void displayHourWeather(int index, char image, int temp, int winddeg, int windbft, int rain);
+    void displayMonthCalendar();
     void displayCalendarEvent(int mday, int wday, int hs, int ms, int he, int me, int type, const String &description);
   protected:
     static constexpr char *DAYSOFWEEK[] = {"ZO","MA","DI","WO","DO","VR","ZA"};

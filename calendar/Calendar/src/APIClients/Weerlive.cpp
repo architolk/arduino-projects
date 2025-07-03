@@ -14,6 +14,16 @@ int Weerlive::findImageIndex(const char* target) {
   return -1;
 }
 
+int Weerlive::findHourIndex(const char* target) {
+  for (int i=0; i<getHourCount(); i++) {
+    const char* datetime = response["uur_verw"].as<JsonArray>()[i]["uur"];
+    if (strstr(datetime,target) != NULL) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 void Weerlive::retrieveWeatherData() {
   if(WiFi.status()== WL_CONNECTED){
     HTTPClient http;
@@ -87,4 +97,28 @@ dayWeather_t Weerlive::getDayWeather(int index) {
 
 size_t Weerlive::getDayCount() {
   return response["wk_verw"].as<JsonArray>().size();
+}
+
+hourWeather_t Weerlive::getHourWeather(const char* timestr) {
+  hourWeather_t hourWeather;
+  int index = findHourIndex(timestr);
+  if (index>=0) {
+    hourWeather.temp = response["uur_verw"].as<JsonArray>()[index]["temp"];
+    hourWeather.windbft = response["uur_verw"].as<JsonArray>()[index]["windbft"];
+    hourWeather.windrgr = response["uur_verw"].as<JsonArray>()[index]["windrgr"];
+    hourWeather.neersl = response["uur_verw"].as<JsonArray>()[index]["neersl"];
+    hourWeather.image = char(65+findImageIndex(response["uur_verw"].as<JsonArray>()[index]["image"]));
+  } else {
+    //Default hourWeather
+    hourWeather.image = char(64);
+    hourWeather.temp = 0;
+    hourWeather.windbft = 0;
+    hourWeather.windrgr = 0;
+    hourWeather.neersl = 0;
+  }
+  return hourWeather;
+}
+
+size_t Weerlive::getHourCount() {
+  return response["uur_verw"].as<JsonArray>().size();
 }

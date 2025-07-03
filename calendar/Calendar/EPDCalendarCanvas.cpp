@@ -123,6 +123,45 @@ void EPDCalendarCanvas::displayWeatherIconRain(char image, int rainperc) {
   drawText(178,370,String(rainperc)+"%",1);
 }
 
+void EPDCalendarCanvas::displayHourWeather(int index, char image, int temp, int winddeg, int windbft, int rain) {
+  setFont(&WeatherIcons36pt7b);
+  setCursor(10+160*index,100);
+  print(image);
+  //Temperature
+  setFont(&FreeSans16pt7b);
+  drawText(80+160*index,65,String(temp));
+  setFont(&FreeSansBold8pt7b);
+  drawText(getCursorX(),52,"o"); //Degrees symbol
+  //Wind direction icon
+  drawCircle(100+160*index,95,10,0);
+  fillRotatedTriangle(100+160*index, 95, 8, winddeg-90); //North = 0, but geometrically 0 is on the Y-axis!
+  //Rain, wind
+  setFont(&FreeSansBold8pt7b);
+  drawText(45+160*index,128,String(rain)+" mm",1);
+  drawText(100+160*index,128,String(windbft)+" Bft",1);
+}
+
+void EPDCalendarCanvas::displayMonthCalendar() {
+
+  //Fixed background, should be made dynamic
+  setFont(&FreeSans16pt7b);
+  int dayStart = 12;
+  for (int j = 0; j<2; j++) {
+    for (int i = 0; i <7; i++) {
+      drawRect(1+113*i, 139+170*j, 113, 170, 0);
+
+      int16_t  x1, y1;
+      uint16_t w, h;
+      getTextBounds(String(dayStart),10+113*i,170+170*j,&x1,&y1,&w,&h);
+
+      setCursor(1+113*i+(113-w)/2,170+170*j);
+      print(String(dayStart));
+      dayStart++;
+    }
+  }
+
+}
+
 void EPDCalendarCanvas::displayCalendarEvent(int mday, int wday, int hs, int ms, int he, int me, int type, const String &description) {
   int16_t ypos = getCursorY(); //16 (-10) standaard
   if (mday!=dayCursor) {
