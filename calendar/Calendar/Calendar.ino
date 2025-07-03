@@ -136,7 +136,7 @@ void updateBottomDisplay() {
   hourWeather = weather.getHourWeather("23:00");
   canvas.displayHourWeather(4, hourWeather.image, hourWeather.temp, hourWeather.windrgr, hourWeather.windbft, hourWeather.neersl);
 
-  canvas.displayMonthCalendar();
+  canvas.displayMonthCalendar(&CurrentTimeInfo);
 
   // done drawing, so send it off to the display
   BottomDisplay.writeCanvas(&canvas, EPD_BLACK_WHITE_LAYER);
@@ -145,8 +145,7 @@ void updateBottomDisplay() {
   canvas.fillScreen(0);  // fill backgrund;
 
   canvas.setTextColor(1, 0); // Red text, white background
-
-  //CODE FOR DRAWING RED SHOULD BE HERE
+  canvas.displayMonthCalendarCurrentDay(&CurrentTimeInfo);
 
   // done drawing, so send it off to the display
   // NB: You should always end with "1" even if no red layer is present (because only at "1" the display is turned on!)

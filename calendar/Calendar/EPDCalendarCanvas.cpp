@@ -141,25 +141,33 @@ void EPDCalendarCanvas::displayHourWeather(int index, char image, int temp, int 
   drawText(100+160*index,128,String(windbft)+" Bft",1);
 }
 
-void EPDCalendarCanvas::displayMonthCalendar() {
+void EPDCalendarCanvas::displayMonthCalendar(struct tm * timeinfo) {
 
-  //Fixed background, should be made dynamic
-  setFont(&FreeSans16pt7b);
+  //Fixed background, draw rectangles
   int dayStart = 12;
   for (int j = 0; j<2; j++) {
     for (int i = 0; i <7; i++) {
       drawRect(1+113*i, 139+170*j, 113, 170, 0);
-
-      int16_t  x1, y1;
-      uint16_t w, h;
-      getTextBounds(String(dayStart),10+113*i,170+170*j,&x1,&y1,&w,&h);
-
-      setCursor(1+113*i+(113-w)/2,170+170*j);
-      print(String(dayStart));
-      dayStart++;
     }
   }
 
+  //Print numbers
+  setFont(&FreeSans16pt7b);
+  int currentDayRow = getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday);
+  for (int day=1; day<=getLastDayOfMonth(timeinfo->tm_mon, timeinfo->tm_year); day++) {
+    int row = getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,day);
+    if ((row>=currentDayRow) && (row<currentDayRow+2)) { //Only draw the row with the current day and the next one
+      if ((timeinfo->tm_mday-day)!=0) { //Don't draw the current day, that day will be in RED
+        drawText(57+113*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,day),170+170*(row-currentDayRow),String(day),1);
+      }
+    }
+  }
+}
+
+void EPDCalendarCanvas::displayMonthCalendarCurrentDay(struct tm * timeinfo) {
+  setTextColor(1, 0); //White background, red text
+  setFont(&FreeSans16pt7b);
+  drawText(57+113*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday),170,String(timeinfo->tm_mday),1);
 }
 
 void EPDCalendarCanvas::displayCalendarEvent(int mday, int wday, int hs, int ms, int he, int me, int type, const String &description) {
