@@ -123,7 +123,7 @@ void EPDCalendarCanvas::displayWeatherIconRain(char image, int rainperc) {
   drawText(178,370,String(rainperc)+"%",1);
 }
 
-void EPDCalendarCanvas::displayHourWeather(int index, char image, int temp, int winddeg, int windbft, int rain) {
+void EPDCalendarCanvas::displayHourWeather(int index, char image, int temp, int winddeg, int windbft, double rain) {
   setFont(&WeatherIcons36pt7b);
   setCursor(10+160*index,100);
   print(image);
@@ -137,7 +137,7 @@ void EPDCalendarCanvas::displayHourWeather(int index, char image, int temp, int 
   fillRotatedTriangle(100+160*index, 95, 8, winddeg-90); //North = 0, but geometrically 0 is on the Y-axis!
   //Rain, wind
   setFont(&FreeSansBold8pt7b);
-  drawText(45+160*index,128,String(rain)+" mm",1);
+  drawText(45+160*index,128,String(rain,1)+" mm",1);
   drawText(100+160*index,128,String(windbft)+" Bft",1);
 }
 
@@ -158,7 +158,7 @@ void EPDCalendarCanvas::displayMonthCalendar(struct tm * timeinfo) {
     int row = getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,day);
     if ((row>=currentDayRow) && (row<currentDayRow+2)) { //Only draw the row with the current day and the next one
       if ((timeinfo->tm_mday-day)!=0) { //Don't draw the current day, that day will be in RED
-        drawText(57+113*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,day),170+170*(row-currentDayRow),String(day),1);
+        drawText(57+113*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,day),168+170*(row-currentDayRow),String(day),1);
       }
     }
   }
@@ -167,10 +167,37 @@ void EPDCalendarCanvas::displayMonthCalendar(struct tm * timeinfo) {
 void EPDCalendarCanvas::displayMonthCalendarCurrentDay(struct tm * timeinfo) {
   setTextColor(1, 0); //White background, red text
   setFont(&FreeSans16pt7b);
-  drawText(57+113*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday),170,String(timeinfo->tm_mday),1);
+  drawText(57+113*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday),168,String(timeinfo->tm_mday),1);
 }
 
-void EPDCalendarCanvas::displayCalendarEvent(int mday, int wday, int hs, int ms, int he, int me, int type, const String &description) {
+void EPDCalendarCanvas::displayMonthCalendarEntry(struct tm * timeinfo, int index, int line, const String description) {
+  setFont(&FreeSansBold8pt7b);
+  int currentDayRow = getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday);
+  int row = getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday+index);
+  drawText(6+113*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,index+timeinfo->tm_mday),188+170*(row-currentDayRow)+18*line,description);
+}
+
+void EPDCalendarCanvas::displayCalendarWeather(struct tm * timeinfo, int index, char image, int mintemp, int maxtemp, int rainperc) {
+
+  int currentDayRow = getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday);
+  int row = getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday+index);
+  int16_t xpos = 1+113*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday+index);
+  int16_t ypos = 300+170*(row-currentDayRow);
+
+  setFont(&WeatherIcons26pt7b);
+  setCursor(xpos,ypos+5);
+  print(image);
+
+  setFont(&FreeSansBold8pt7b);
+  drawText(49+xpos,ypos-22,String(mintemp)+" > "+String(maxtemp));
+  drawText(49+xpos,ypos-2,String(rainperc)+"%");
+}
+
+boolean EPDCalendarCanvas::calendarSpaceAvailable() {
+  return (getCursorY()<430);
+}
+
+void EPDCalendarCanvas::displayCalendarEntry(int mday, int wday, int hs, int ms, int he, int me, int type, boolean fullDay, const String description) {
   int16_t ypos = getCursorY(); //16 (-10) standaard
   if (mday!=dayCursor) {
     dayCursor = mday;
@@ -188,14 +215,16 @@ void EPDCalendarCanvas::displayCalendarEvent(int mday, int wday, int hs, int ms,
   setTextColor(0, 1); // black text, white background
   setFont(&FreeSans10pt7b);
   drawText(405,20+ypos,description);
-  setFont(&FreeSans12pt7b);
-  String msStr = String(ms);
-  if (msStr.length()<2) {msStr = "0"+msStr;}
-  String meStr = String(me);
-  if (meStr.length()<2) {meStr = "0"+meStr;}
-  drawText(370,20+ypos,String(hs)+":"+msStr,2);
-  setFont(&FreeSansBold8pt7b);
-  drawText(370,38+ypos,String(he)+":"+meStr,2);
-  drawTimeRect(380,32+ypos,hs,ms,he,me);
+  if (!fullDay) {
+    setFont(&FreeSans12pt7b);
+    String msStr = String(ms);
+    if (msStr.length()<2) {msStr = "0"+msStr;}
+    String meStr = String(me);
+    if (meStr.length()<2) {meStr = "0"+meStr;}
+    drawText(370,20+ypos,String(hs)+":"+msStr,2);
+    setFont(&FreeSansBold8pt7b);
+    drawText(370,38+ypos,String(he)+":"+meStr,2);
+    drawTimeRect(380,32+ypos,hs,ms,he,me);
+  }
   setCursor(308,ypos+50);
 }

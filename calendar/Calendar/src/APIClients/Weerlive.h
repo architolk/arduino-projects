@@ -18,7 +18,7 @@ struct hourWeather_t {
   int temp;
   int windbft;
   int windrgr;
-  int neersl;
+  double neersl;
 };
 
 class Weerlive {
@@ -28,9 +28,9 @@ class Weerlive {
     String getForecast();
     dayWeather_t getDayWeather(int index);
     hourWeather_t getHourWeather(const char* timestr);
+    size_t getDayCount();
   protected:
     JsonDocument response;
-    size_t getDayCount();
     size_t getHourCount();
     int findImageIndex(const char* target);
     int findHourIndex(const char* target);

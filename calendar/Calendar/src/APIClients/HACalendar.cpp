@@ -13,7 +13,7 @@ void HACalendar::addDays(struct tm * timeinfo, struct tm * endtimeinfo, int days
   mktime(endtimeinfo); //Create the correct struct
 }
 
-void HACalendar::retrieveCalendarData(struct tm * timeinfo) {
+void HACalendar::retrieveCalendarData(struct tm * timeinfo, String calendarName) {
   if(WiFi.status()== WL_CONNECTED){
     HTTPClient http;
 
@@ -25,8 +25,11 @@ void HACalendar::retrieveCalendarData(struct tm * timeinfo) {
     strftime(dateBuf,11,"%Y-%m-%d",&endtimeinfo);
     params = params + String(dateBuf)+"T00:00:00.000Z";
 
-    String serverName = "http://192.168.178.47:8123/api/calendars/calendar.familie";
+    String serverName = "http://192.168.178.47:8123/api/calendars/calendar."+calendarName;
     String serverPath = serverName + params;
+
+    Serial.println("HTTP GET:");
+    Serial.println(serverPath);
 
     // Your Domain name with URL path or IP address with path
     http.begin(serverPath.c_str());
@@ -79,16 +82,31 @@ entry_t HACalendar::getEntry(int index) {
     entry.summary = response.as<JsonArray>()[index]["summary"];
     entry.description = response.as<JsonArray>()[index]["description"];
     const char* startDateTime = response.as<JsonArray>()[index]["start"]["dateTime"];
-    strptime(startDateTime,"%Y-%m-%dT%H:%M:%S",&timeinfo);
-    mktime(&timeinfo); //Especially for day-of-week
-    entry.startHour = timeinfo.tm_hour;
-    entry.startMinute = timeinfo.tm_min;
-    const char* endDateTime = response.as<JsonArray>()[index]["end"]["dateTime"];
-    strptime(endDateTime,"%Y-%m-%dT%H:%M:%S",&timeinfo);
-    entry.endHour = timeinfo.tm_hour;
-    entry.endMinute = timeinfo.tm_min;
-    entry.mday = timeinfo.tm_mday;
-    entry.wday = timeinfo.tm_wday;
+    if (startDateTime==nullptr) {
+        const char* startDate = response.as<JsonArray>()[index]["start"]["date"];
+        strptime(startDate,"%Y-%m-%d",&timeinfo);
+        timeinfo.tm_hour=12;
+        timeinfo.tm_min=0;
+        timeinfo.tm_sec=0;
+        mktime(&timeinfo); //Especially for day-of-week
+        entry.month = timeinfo.tm_mon;
+        entry.mday = timeinfo.tm_mday;
+        entry.wday = timeinfo.tm_wday;
+        entry.fullDayEvent = true;
+    } else {
+      strptime(startDateTime,"%Y-%m-%dT%H:%M:%S",&timeinfo);
+      mktime(&timeinfo); //Especially for day-of-week
+      entry.startHour = timeinfo.tm_hour;
+      entry.startMinute = timeinfo.tm_min;
+      entry.month = timeinfo.tm_mon;
+      entry.mday = timeinfo.tm_mday;
+      entry.wday = timeinfo.tm_wday;
+      const char* endDateTime = response.as<JsonArray>()[index]["end"]["dateTime"];
+      strptime(endDateTime,"%Y-%m-%dT%H:%M:%S",&timeinfo);
+      entry.endHour = timeinfo.tm_hour;
+      entry.endMinute = timeinfo.tm_min;
+      entry.fullDayEvent = false;
+    }
   }
   return entry;
 }

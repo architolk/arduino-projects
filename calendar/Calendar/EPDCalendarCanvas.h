@@ -29,10 +29,13 @@ class EPDCalendarCanvas : public EPDCanvas {
     void displayMinMaxTemperature(int minTemp, int maxTemp);
     void displayForecast(const String &forecase);
     void displayWeatherIconRain(char image, int rainperc);
-    void displayHourWeather(int index, char image, int temp, int winddeg, int windbft, int rain);
+    void displayHourWeather(int index, char image, int temp, int winddeg, int windbft, double rain);
     void displayMonthCalendar(struct tm * timeinfo);
     void displayMonthCalendarCurrentDay(struct tm * timeinfo);
-    void displayCalendarEvent(int mday, int wday, int hs, int ms, int he, int me, int type, const String &description);
+    void displayCalendarWeather(struct tm * timeinfo, int index, char image, int mintemp, int maxtemp, int rainperc);
+    boolean calendarSpaceAvailable();
+    void displayCalendarEntry(int mday, int wday, int hs, int ms, int he, int me, int type, boolean fullDay, const String description);
+    void displayMonthCalendarEntry(struct tm * timeinfo, int index, int line, const String description);
   protected:
     static constexpr char *DAYSOFWEEK[] = {"ZO","MA","DI","WO","DO","VR","ZA"};
     int dayCursor = 0; //Used to check if a new day has arrived, or still in the current day

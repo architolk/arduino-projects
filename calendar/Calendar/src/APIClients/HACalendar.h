@@ -7,8 +7,10 @@
 struct entry_t {
   const char* summary;
   const char* description;
+  uint8_t month;
   uint8_t mday;
   uint8_t wday;
+  boolean fullDayEvent;
   uint8_t startHour;
   uint8_t startMinute;
   uint8_t endHour;
@@ -17,7 +19,7 @@ struct entry_t {
 
 class HACalendar {
   public:
-    void retrieveCalendarData(struct tm * timeinfo);
+    void retrieveCalendarData(struct tm * timeinfo, String calendarName);
     size_t getEntryCount();
     entry_t getEntry(int index);
   protected:

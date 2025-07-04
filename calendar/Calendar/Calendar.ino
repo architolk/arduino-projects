@@ -10,11 +10,11 @@
 #include "src/APIClients/Weerlive.h"
 
 //Uncomment this to keep the display state persistant (the display won't be cleared, leaving the last image behind - not recommended if e-Paper is stored)
-//#define KEEP_DISPLAY_STATE
+#define KEEP_DISPLAY_STATE
 
 //Displays
-EInkDisplay TopDisplay(TOP_PIN_CS, TOP_PIN_DC, TOP_PIN_RST, TOP_PIN_BUSY, TOP_PIN_PWR);;
-EInkDisplay BottomDisplay(BOTTOM_PIN_CS, BOTTOM_PIN_DC, BOTTOM_PIN_RST, BOTTOM_PIN_BUSY, BOTTOM_PIN_PWR);;
+EInkDisplay TopDisplay(TOP_PIN_CS, TOP_PIN_DC, TOP_PIN_RST, TOP_PIN_BUSY, TOP_PIN_PWR);
+EInkDisplay BottomDisplay(BOTTOM_PIN_CS, BOTTOM_PIN_DC, BOTTOM_PIN_RST, BOTTOM_PIN_BUSY, BOTTOM_PIN_PWR);
 
 //CalendarCanvas
 EPDCalendarCanvas canvas(EPD_7IN5B_V2_WIDTH, EPD_7IN5B_V2_HEIGHT);
@@ -22,8 +22,9 @@ EPDCalendarCanvas canvas(EPD_7IN5B_V2_WIDTH, EPD_7IN5B_V2_HEIGHT);
 //Current time stuff
 struct tm CurrentTimeInfo;
 
-//Interface to Home Automation Calendar API
-HACalendar cal;
+//Interface to Home Automation Calendar API (per calendar)
+HACalendar calFamily;
+HACalendar calBirthdays;
 //Interface to Weerlive API
 Weerlive weather;
 
@@ -64,13 +65,42 @@ void updateTopDisplay() {
   canvas.fillRect(240,10,5,455,0);
 
   canvas.setCursor(308,6); //Beginpoint of the calendar. X pos is ignored.
-  for (int i=0; i<cal.getEntryCount(); i++) {
-    entry_t entry = cal.getEntry(0);
-    canvas.displayCalendarEvent(entry.mday, entry.wday, entry.startHour, entry.startMinute, entry.endHour, entry.endMinute, 1, String(entry.summary));
+  int indexFamily = 0;
+  int indexBirthdays = 0;
+  entry_t entryFamily;
+  entry_t entryBirthdays;
+  //Get first entries, if available
+  if (calBirthdays.getEntryCount()>0) {
+    entryBirthdays = calBirthdays.getEntry(0);
   }
-  canvas.displayCalendarEvent(CurrentTimeInfo.tm_mday, CurrentTimeInfo.tm_wday, 8, 20, 14, 15, 2, "school");
-  canvas.displayCalendarEvent(CurrentTimeInfo.tm_mday, CurrentTimeInfo.tm_wday, 8, 00, 17, 00, 2, "kantoor");
-  canvas.displayCalendarEvent(CurrentTimeInfo.tm_mday+1, CurrentTimeInfo.tm_wday+1, 8, 00, 17, 00, 2, "schoolfotograaf!");
+  if (calFamily.getEntryCount()>0) {
+    entryFamily = calFamily.getEntry(0);
+  }
+  boolean notFinished = ((calBirthdays.getEntryCount()>0) || (calFamily.getEntryCount()>0));
+  while (notFinished) {
+    //If family is earlier, show family and go to next event for family
+    if ((indexFamily<calFamily.getEntryCount()) && ((entryFamily.mday<entryBirthdays.mday) || (indexBirthdays>=calBirthdays.getEntryCount()))) {
+      //Show family entry
+      canvas.displayCalendarEntry(entryFamily.mday, entryFamily.wday, entryFamily.startHour, entryFamily.startMinute, entryFamily.endHour, entryFamily.endMinute, 1, entryFamily.fullDayEvent, String(entryFamily.summary));
+      indexFamily++;
+      if (indexFamily<calFamily.getEntryCount()) {
+        entryFamily = calFamily.getEntry(indexFamily);
+      }
+    } else {
+      //If family is not earlier, show birthday and go to next event for birthdays
+      if (indexBirthdays<calBirthdays.getEntryCount()) {
+        //Show birthday entry
+        canvas.displayCalendarEntry(entryBirthdays.mday, entryBirthdays.wday, entryBirthdays.startHour, entryBirthdays.startMinute, entryBirthdays.endHour, entryBirthdays.endMinute, 1, entryBirthdays.fullDayEvent, String(entryBirthdays.summary));
+        indexBirthdays++;
+        if (indexBirthdays<calBirthdays.getEntryCount()) {
+          entryBirthdays = calBirthdays.getEntry(indexBirthdays);
+        }
+
+      }
+    }
+    //Stop if no more entries, or no more space available
+    notFinished = (((indexFamily<calFamily.getEntryCount()) || (indexBirthdays<calBirthdays.getEntryCount())) && (canvas.calendarSpaceAvailable()));
+  }
 
   // done drawing, so send it off to the display
   TopDisplay.writeCanvas(&canvas, EPD_BLACK_WHITE_LAYER);
@@ -137,6 +167,25 @@ void updateBottomDisplay() {
   canvas.displayHourWeather(4, hourWeather.image, hourWeather.temp, hourWeather.windrgr, hourWeather.windbft, hourWeather.neersl);
 
   canvas.displayMonthCalendar(&CurrentTimeInfo);
+
+  dayWeather_t dayw;
+  for (int i=0; i<weather.getDayCount(); i++) {
+    dayw = weather.getDayWeather(i);
+    canvas.displayCalendarWeather(&CurrentTimeInfo, i, dayw.image, dayw.min_temp, dayw.max_temp, dayw.neersl_perc_dag);
+  }
+
+  int line = 0;
+  uint8_t lineDay = 255; //Value that cannot occur
+  for (int i=0; i<calBirthdays.getEntryCount(); i++) {
+    entry_t entry = calBirthdays.getEntry(i);
+    if (entry.mday!=lineDay) {
+      line = 0;
+      lineDay = entry.mday;
+    } else {
+      line++;
+    }
+    canvas.displayMonthCalendarEntry(&CurrentTimeInfo, entry.mday - CurrentTimeInfo.tm_mday, line, String(entry.summary));
+  }
 
   // done drawing, so send it off to the display
   BottomDisplay.writeCanvas(&canvas, EPD_BLACK_WHITE_LAYER);
@@ -235,8 +284,10 @@ boolean setupWifi() {
     count++;
   }
   if (WiFi.status()==WL_CONNECTED) {
-    cal.retrieveCalendarData(&CurrentTimeInfo);
     weather.retrieveWeatherData();
+    setupTime();
+    calFamily.retrieveCalendarData(&CurrentTimeInfo,"familie");
+    calBirthdays.retrieveCalendarData(&CurrentTimeInfo,"verjaardagen");
     return true;
   } else {
     return false;
@@ -253,9 +304,8 @@ void setup() {
   } else {
     initialize();
     if (setupWifi()) {
-      setupTime();
-      //updateTopDisplay();
-      updateBottomDisplay();
+      updateTopDisplay();
+      //updateBottomDisplay();
     } else {
       Serial.println("Wifi not available");
     }
