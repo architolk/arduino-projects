@@ -81,6 +81,18 @@ entry_t HACalendar::getEntry(int index) {
     struct tm timeinfo;
     entry.summary = response.as<JsonArray>()[index]["summary"];
     entry.description = response.as<JsonArray>()[index]["description"];
+    if (entry.description!=nullptr) {
+      entry.urgent = (strchr(entry.description,'!')!=NULL);
+      if (strlen(entry.description)>0) {
+        entry.eventType = entry.description[0];
+      }
+      char* p = strchr(entry.description,' ');
+      if (p==NULL) {
+        entry.eventYear = 0;
+      } else {
+        entry.eventYear = atoi(p);
+      }
+    }
     const char* startDateTime = response.as<JsonArray>()[index]["start"]["dateTime"];
     if (startDateTime==nullptr) {
         const char* startDate = response.as<JsonArray>()[index]["start"]["date"];

@@ -197,7 +197,26 @@ boolean EPDCalendarCanvas::calendarSpaceAvailable() {
   return (getCursorY()<430);
 }
 
-void EPDCalendarCanvas::displayCalendarEntry(int mday, int wday, int hs, int ms, int he, int me, int type, boolean fullDay, const String description) {
+void EPDCalendarCanvas::displayCalendarResetDayCursor() {
+  dayCursor = 0;
+}
+
+void EPDCalendarCanvas::displayCalendarEntryUrgent(int mday, char type, boolean displayType) {
+  int16_t ypos = getCursorY(); //16 (-10) standaard
+  if (mday!=dayCursor) {
+    dayCursor = mday;
+    ypos+=10; //Add 10 pixels for separation between days
+  }
+  if (displayType) {
+    fillCircle(390,12+ypos,10,1); //Red
+    setTextColor(0, 1); // white text, red background
+    setFont(&FreeSansBold8pt7b);
+    drawText(390,18+ypos,String(type),1);
+  }
+  setCursor(308,ypos+50);
+}
+
+void EPDCalendarCanvas::displayCalendarEntry(int mday, int wday, int hs, int ms, int he, int me, char type, boolean fullDay, boolean displayType, const String description) {
   int16_t ypos = getCursorY(); //16 (-10) standaard
   if (mday!=dayCursor) {
     dayCursor = mday;
@@ -208,10 +227,12 @@ void EPDCalendarCanvas::displayCalendarEntry(int mday, int wday, int hs, int ms,
     drawText(298,44+ypos,DAYSOFWEEK[wday],2);
   }
   fillRect(308,ypos,2,50,0);
-  fillCircle(390,12+ypos,10,0);
-  setTextColor(1, 0); // white text, black background
-  setFont(&FreeSansBold8pt7b);
-  drawText(390,18+ypos,"J",1);
+  if (displayType) {
+    fillCircle(390,12+ypos,10,0);
+    setTextColor(1, 0); // white text, black background
+    setFont(&FreeSansBold8pt7b);
+    drawText(390,18+ypos,String(type),1);
+  }
   setTextColor(0, 1); // black text, white background
   setFont(&FreeSans10pt7b);
   drawText(405,20+ypos,description);

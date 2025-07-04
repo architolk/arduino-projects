@@ -15,6 +15,9 @@ struct entry_t {
   uint8_t startMinute;
   uint8_t endHour;
   uint8_t endMinute;
+  char eventType;
+  boolean urgent;
+  uint16_t eventYear; //Like year of birth, year of marriage, etc.
 };
 
 class HACalendar {

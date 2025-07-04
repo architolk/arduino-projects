@@ -34,7 +34,9 @@ class EPDCalendarCanvas : public EPDCanvas {
     void displayMonthCalendarCurrentDay(struct tm * timeinfo);
     void displayCalendarWeather(struct tm * timeinfo, int index, char image, int mintemp, int maxtemp, int rainperc);
     boolean calendarSpaceAvailable();
-    void displayCalendarEntry(int mday, int wday, int hs, int ms, int he, int me, int type, boolean fullDay, const String description);
+    void displayCalendarResetDayCursor();
+    void displayCalendarEntryUrgent(int mday, char type, boolean displayType);
+    void displayCalendarEntry(int mday, int wday, int hs, int ms, int he, int me, char type, boolean fullDay, boolean displayType, const String description);
     void displayMonthCalendarEntry(struct tm * timeinfo, int index, int line, const String description);
   protected:
     static constexpr char *DAYSOFWEEK[] = {"ZO","MA","DI","WO","DO","VR","ZA"};

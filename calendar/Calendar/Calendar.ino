@@ -43,6 +43,62 @@ void initialize() {
   Serial.println("e-Paper Calendar");
 }
 
+void processCalendarEntries(boolean doUrgent) {
+
+  int indexFamily = 0;
+  int indexBirthdays = 0;
+  entry_t entryFamily;
+  entry_t entryBirthdays;
+
+  canvas.setCursor(308,6); //Beginpoint of the calendar. X pos is ignored.
+  canvas.displayCalendarResetDayCursor();
+
+  //Get first entries, if available
+  if (calBirthdays.getEntryCount()>0) {
+    entryBirthdays = calBirthdays.getEntry(0);
+  }
+  if (calFamily.getEntryCount()>0) {
+    entryFamily = calFamily.getEntry(0);
+  }
+  boolean notFinished = ((calBirthdays.getEntryCount()>0) || (calFamily.getEntryCount()>0));
+  while (notFinished) {
+    //If family is earlier, show family and go to next event for family
+    if ((indexFamily<calFamily.getEntryCount()) && ((entryFamily.mday<entryBirthdays.mday) || (indexBirthdays>=calBirthdays.getEntryCount()))) {
+      //Show family entry
+      if (doUrgent) {
+        canvas.displayCalendarEntryUrgent(entryFamily.mday, entryFamily.eventType, entryFamily.urgent);
+      } else {
+        canvas.displayCalendarEntry(entryFamily.mday, entryFamily.wday, entryFamily.startHour, entryFamily.startMinute, entryFamily.endHour, entryFamily.endMinute, entryFamily.eventType, entryFamily.fullDayEvent, !entryFamily.urgent, String(entryFamily.summary));
+      }
+      indexFamily++;
+      if (indexFamily<calFamily.getEntryCount()) {
+        entryFamily = calFamily.getEntry(indexFamily);
+      }
+    } else {
+      //If family is not earlier, show birthday and go to next event for birthdays
+      if (indexBirthdays<calBirthdays.getEntryCount()) {
+        //Show birthday entry
+        String summary = String(entryBirthdays.summary);
+        if ((entryBirthdays.eventYear>1900) && (entryBirthdays.eventYear<=(1900+CurrentTimeInfo.tm_year))) {
+          summary = summary + " (" + String(1900 + CurrentTimeInfo.tm_year - entryBirthdays.eventYear) + ")";
+        }
+        if (doUrgent) {
+          canvas.displayCalendarEntryUrgent(entryBirthdays.mday, entryBirthdays.eventType,entryBirthdays.urgent);
+        } else {
+          canvas.displayCalendarEntry(entryBirthdays.mday, entryBirthdays.wday, entryBirthdays.startHour, entryBirthdays.startMinute, entryBirthdays.endHour, entryBirthdays.endMinute, entryBirthdays.eventType, entryBirthdays.fullDayEvent, !entryBirthdays.urgent, summary);
+        }
+        indexBirthdays++;
+        if (indexBirthdays<calBirthdays.getEntryCount()) {
+          entryBirthdays = calBirthdays.getEntry(indexBirthdays);
+        }
+
+      }
+    }
+    //Stop if no more entries, or no more space available
+    notFinished = (((indexFamily<calFamily.getEntryCount()) || (indexBirthdays<calBirthdays.getEntryCount())) && (canvas.calendarSpaceAvailable()));
+  }
+}
+
 void updateTopDisplay() {
 
   Serial.println("TopDisplay: e-Paper activated");
@@ -64,43 +120,7 @@ void updateTopDisplay() {
 
   canvas.fillRect(240,10,5,455,0);
 
-  canvas.setCursor(308,6); //Beginpoint of the calendar. X pos is ignored.
-  int indexFamily = 0;
-  int indexBirthdays = 0;
-  entry_t entryFamily;
-  entry_t entryBirthdays;
-  //Get first entries, if available
-  if (calBirthdays.getEntryCount()>0) {
-    entryBirthdays = calBirthdays.getEntry(0);
-  }
-  if (calFamily.getEntryCount()>0) {
-    entryFamily = calFamily.getEntry(0);
-  }
-  boolean notFinished = ((calBirthdays.getEntryCount()>0) || (calFamily.getEntryCount()>0));
-  while (notFinished) {
-    //If family is earlier, show family and go to next event for family
-    if ((indexFamily<calFamily.getEntryCount()) && ((entryFamily.mday<entryBirthdays.mday) || (indexBirthdays>=calBirthdays.getEntryCount()))) {
-      //Show family entry
-      canvas.displayCalendarEntry(entryFamily.mday, entryFamily.wday, entryFamily.startHour, entryFamily.startMinute, entryFamily.endHour, entryFamily.endMinute, 1, entryFamily.fullDayEvent, String(entryFamily.summary));
-      indexFamily++;
-      if (indexFamily<calFamily.getEntryCount()) {
-        entryFamily = calFamily.getEntry(indexFamily);
-      }
-    } else {
-      //If family is not earlier, show birthday and go to next event for birthdays
-      if (indexBirthdays<calBirthdays.getEntryCount()) {
-        //Show birthday entry
-        canvas.displayCalendarEntry(entryBirthdays.mday, entryBirthdays.wday, entryBirthdays.startHour, entryBirthdays.startMinute, entryBirthdays.endHour, entryBirthdays.endMinute, 1, entryBirthdays.fullDayEvent, String(entryBirthdays.summary));
-        indexBirthdays++;
-        if (indexBirthdays<calBirthdays.getEntryCount()) {
-          entryBirthdays = calBirthdays.getEntry(indexBirthdays);
-        }
-
-      }
-    }
-    //Stop if no more entries, or no more space available
-    notFinished = (((indexFamily<calFamily.getEntryCount()) || (indexBirthdays<calBirthdays.getEntryCount())) && (canvas.calendarSpaceAvailable()));
-  }
+  processCalendarEntries(false); //Don't draw any red (=urgent) items
 
   // done drawing, so send it off to the display
   TopDisplay.writeCanvas(&canvas, EPD_BLACK_WHITE_LAYER);
@@ -110,6 +130,8 @@ void updateTopDisplay() {
 
   //canvas.setTextColor(1, 0); // Red text, white background
   canvas.displayMonthInfoCurrentDay(&CurrentTimeInfo);
+
+  processCalendarEntries(true); //Draw all red (=urgent) items
 
   // done drawing, so send it off to the display
   // NB: You should always end with "1" even if no red layer is present (because only at "1" the display is turned on!)
@@ -222,7 +244,7 @@ void updateBottomDisplay() {
 }
 
 void setTimezone(String timezone) {
-  Serial.printf("  Setting Timezone to %s\n",timezone.c_str());
+  Serial.printf("Setting Timezone to %s\n",timezone.c_str());
   setenv("TZ",timezone.c_str(),1);  //  Now adjust the TZ.  Clock settings are adjusted to show the new local time
   tzset();
 }
