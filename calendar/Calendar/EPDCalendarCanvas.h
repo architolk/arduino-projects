@@ -38,6 +38,7 @@ class EPDCalendarCanvas : public EPDCanvas {
     void displayCalendarEntryUrgent(int mday, char type, boolean displayType);
     void displayCalendarEntry(int mday, int wday, int hs, int ms, int he, int me, char type, boolean fullDay, boolean displayType, const String description);
     void displayMonthCalendarEntry(struct tm * timeinfo, int index, int line, const String description);
+    int getLastDayOfMonth(int mon, int year);
   protected:
     static constexpr char *DAYSOFWEEK[] = {"ZO","MA","DI","WO","DO","VR","ZA"};
     int dayCursor = 0; //Used to check if a new day has arrived, or still in the current day
@@ -46,6 +47,5 @@ class EPDCalendarCanvas : public EPDCanvas {
     void printMonth(int mon);
     int getDayColumn(int wday, int mday, int day);
     int getDayRow(int wday, int mday, int day);
-    int getLastDayOfMonth(int mon, int year);
 };
 #endif

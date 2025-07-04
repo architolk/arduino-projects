@@ -78,7 +78,7 @@ void EPDCalendarCanvas::displayMonthInfo(struct tm * timeinfo) {
   drawText(200,150,"ZO",1);
   drawLine(5,154,215,154,0);
 
-  for (int day=1; day<=getLastDayOfMonth(timeinfo->tm_mon, timeinfo->tm_year); day++) {
+  for (int day=1; day<=getLastDayOfMonth(timeinfo->tm_mon, 1900+timeinfo->tm_year); day++) {
     if ((timeinfo->tm_mday-day)!=0) { //Don't draw the current day, that day will be in RED
       drawText(20+30*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,day),170+20*getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,day),String(day),1);
     }
@@ -154,11 +154,13 @@ void EPDCalendarCanvas::displayMonthCalendar(struct tm * timeinfo) {
   //Print numbers
   setFont(&FreeSans16pt7b);
   int currentDayRow = getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday);
-  for (int day=1; day<=getLastDayOfMonth(timeinfo->tm_mon, timeinfo->tm_year); day++) {
+  int lastDayOfMonth = getLastDayOfMonth(timeinfo->tm_mon, 1900+timeinfo->tm_year);
+  for (int day=1; day<=(lastDayOfMonth+13); day++) { //Should continu for max 13 days more!
     int row = getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,day);
+    int daynr = (day<=lastDayOfMonth) ? day : day-lastDayOfMonth;
     if ((row>=currentDayRow) && (row<currentDayRow+2)) { //Only draw the row with the current day and the next one
       if ((timeinfo->tm_mday-day)!=0) { //Don't draw the current day, that day will be in RED
-        drawText(57+113*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,day),168+170*(row-currentDayRow),String(day),1);
+        drawText(57+113*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,day),168+170*(row-currentDayRow),String(daynr),1);
       }
     }
   }
@@ -174,7 +176,9 @@ void EPDCalendarCanvas::displayMonthCalendarEntry(struct tm * timeinfo, int inde
   setFont(&FreeSansBold8pt7b);
   int currentDayRow = getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday);
   int row = getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday+index);
-  drawText(6+113*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,index+timeinfo->tm_mday),188+170*(row-currentDayRow)+18*line,description);
+  if ((row>=currentDayRow) && (row<currentDayRow+2)) {
+    drawText(6+113*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,index+timeinfo->tm_mday),188+170*(row-currentDayRow)+18*line,description);
+  }
 }
 
 void EPDCalendarCanvas::displayCalendarWeather(struct tm * timeinfo, int index, char image, int mintemp, int maxtemp, int rainperc) {

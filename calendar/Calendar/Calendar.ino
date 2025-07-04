@@ -10,7 +10,7 @@
 #include "src/APIClients/Weerlive.h"
 
 //Uncomment this to keep the display state persistant (the display won't be cleared, leaving the last image behind - not recommended if e-Paper is stored)
-#define KEEP_DISPLAY_STATE
+//#define KEEP_DISPLAY_STATE
 
 //Displays
 EInkDisplay TopDisplay(TOP_PIN_CS, TOP_PIN_DC, TOP_PIN_RST, TOP_PIN_BUSY, TOP_PIN_PWR);
@@ -43,6 +43,10 @@ void initialize() {
   Serial.println("e-Paper Calendar");
 }
 
+int dayIndex(int month, int mday) {
+  return month*31 + mday;
+}
+
 void processCalendarEntries(boolean doUrgent) {
 
   int indexFamily = 0;
@@ -63,7 +67,7 @@ void processCalendarEntries(boolean doUrgent) {
   boolean notFinished = ((calBirthdays.getEntryCount()>0) || (calFamily.getEntryCount()>0));
   while (notFinished) {
     //If family is earlier, show family and go to next event for family
-    if ((indexFamily<calFamily.getEntryCount()) && ((entryFamily.mday<entryBirthdays.mday) || (indexBirthdays>=calBirthdays.getEntryCount()))) {
+    if ((indexFamily<calFamily.getEntryCount()) && ((dayIndex(entryFamily.month,entryFamily.mday)<dayIndex(entryBirthdays.month,entryBirthdays.mday)) || (indexBirthdays>=calBirthdays.getEntryCount()))) {
       //Show family entry
       if (doUrgent) {
         canvas.displayCalendarEntryUrgent(entryFamily.mday, entryFamily.eventType, entryFamily.urgent);
@@ -206,7 +210,11 @@ void updateBottomDisplay() {
     } else {
       line++;
     }
-    canvas.displayMonthCalendarEntry(&CurrentTimeInfo, entry.mday - CurrentTimeInfo.tm_mday, line, String(entry.summary));
+    int dayIndex = entry.mday - CurrentTimeInfo.tm_mday;
+    if (dayIndex<0) {
+      dayIndex += canvas.getLastDayOfMonth(CurrentTimeInfo.tm_mon,1900+CurrentTimeInfo.tm_year);
+    }
+    canvas.displayMonthCalendarEntry(&CurrentTimeInfo, dayIndex, line, String(entry.summary));
   }
 
   // done drawing, so send it off to the display
@@ -276,11 +284,13 @@ void setupTime() {
   setTimezone("CET-1CEST,M3.5.0,M10.5.0/3"); //Amsterdam
   time_t epoch = weather.getTimestamp();
   if (epoch > 1751095685) {//It needs to be a timestamp after the compiletime of this routine!
-    setTime(weather.getTimestamp());
+    setTime(weather.getTimestamp()); //Set time retrieved from the weather API
   } else {
-    //Fallback
-    Serial.println("Failed to get timestamp from weather API, use default value");
+    //Fallback (only works after deep sleep - doesn't work after reset!)
+    Serial.println("Failed to get timestamp from weather API, use value from RTC");
+    /*
     setTime(2025,6,30,21,20,0,0); //11-22-2025 21:20:00 No daylight saving time - but can this not be done automatically?
+    */
   }
 
   if(!getLocalTime(&CurrentTimeInfo)){
@@ -326,8 +336,8 @@ void setup() {
   } else {
     initialize();
     if (setupWifi()) {
-      updateTopDisplay();
-      //updateBottomDisplay();
+      //updateTopDisplay();
+      updateBottomDisplay();
     } else {
       Serial.println("Wifi not available");
     }
