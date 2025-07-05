@@ -37,7 +37,8 @@ void initialize() {
   BottomDisplay.setupPins();
 
 	// spi
-	SPI.begin(); //Should probable to SPI.begin(SPI_PIN_SCK, SPI_PIN_MISO, SPI_PIN_MOSI)
+	/*SPI.begin(); //Should probable to SPI.begin(SPI_PIN_SCK, SPI_PIN_MISO, SPI_PIN_MOSI)*/
+  SPI.begin(SPI_PIN_SCK, SPI_PIN_MISO, SPI_PIN_MOSI);
   SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0)); //SPI pins are the default ones...
 
   Serial.println("e-Paper Calendar");
@@ -336,8 +337,8 @@ void setup() {
   } else {
     initialize();
     if (setupWifi()) {
-      //updateTopDisplay();
-      updateBottomDisplay();
+      updateTopDisplay();
+      //updateBottomDisplay();
     } else {
       Serial.println("Wifi not available");
     }
