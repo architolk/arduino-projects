@@ -12,6 +12,15 @@
 //Uncomment this to keep the display state persistant (the display won't be cleared, leaving the last image behind - not recommended if e-Paper is stored)
 //#define KEEP_DISPLAY_STATE
 
+//In deep sleep, we can't upload stuff, so we need time before we go into deep sleep
+//Minimum 30 seconds, as compiling takes a long time!
+//In production, this can be a much lower number
+#define SLEEP_INTERVAL 30000
+
+//Timer
+#define uS_TO_S_FACTOR 1000000ULL  // Conversion factor for micro seconds to seconds
+#define TIME_TO_SLEEP  30
+
 //Displays
 EInkDisplay TopDisplay(TOP_PIN_CS, TOP_PIN_DC, TOP_PIN_RST, TOP_PIN_BUSY, TOP_PIN_PWR);
 EInkDisplay BottomDisplay(BOTTOM_PIN_CS, BOTTOM_PIN_DC, BOTTOM_PIN_RST, BOTTOM_PIN_BUSY, BOTTOM_PIN_PWR);
@@ -30,7 +39,7 @@ Weerlive weather;
 
 void initialize() {
   pinMode(LED_PIN_ESP32, OUTPUT); //Set LED pin to output
-  digitalWrite(LED_PIN_ESP32, LOW); // Set LED pin low, indicating that we have started!
+  digitalWrite(LED_PIN_ESP32, HIGH); // Set LED pin high, indicating that we have started!
 
   //Setup pins according to config
   TopDisplay.setupPins();
@@ -111,6 +120,8 @@ void updateTopDisplay() {
 
   //Initialize screen
   TopDisplay.init();
+
+  Serial.println("e-Paper initialized, start drawing");
   //1 = White, 0 = Black
   canvas.fillScreen(1);      // fill background
   canvas.setTextColor(0, 1); // black text, white background
@@ -126,6 +137,8 @@ void updateTopDisplay() {
   canvas.fillRect(240,10,5,455,0);
 
   processCalendarEntries(false); //Don't draw any red (=urgent) items
+
+  canvas.displayStatus(&CurrentTimeInfo);
 
   // done drawing, so send it off to the display
   TopDisplay.writeCanvas(&canvas, EPD_BLACK_WHITE_LAYER);
@@ -154,7 +167,7 @@ void updateTopDisplay() {
     TopDisplay.clear();
   #endif
 
-  Serial.println("Goto Sleep...");
+  Serial.println("Display sleep...");
   TopDisplay.sleep();
 
   // close PWR
@@ -243,7 +256,7 @@ void updateBottomDisplay() {
     BottomDisplay.clear();
   #endif
 
-  Serial.println("Goto Sleep...");
+  Serial.println("Display sleep...");
   BottomDisplay.sleep();
 
   // close PWR
@@ -327,10 +340,41 @@ boolean setupWifi() {
   }
 }
 
+void gotoSleep() {
+  Serial.print("ESP32 Deep sleep after sleep interval: ");
+  Serial.println(SLEEP_INTERVAL);
+  DEV_Delay_ms(SLEEP_INTERVAL);
+
+  // Should be depending on the current time, so we always sleep till 1:30 at night
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  //Enable touch wakeup
+  touchSleepWakeUpEnable(TOUCH_PIN_WAKEUP, TOUCH_THRESHOLD);
+
+  Serial.println("Start sleeping");
+  esp_deep_sleep_start();
+}
+
+void printWakeupReason() {
+  esp_sleep_wakeup_cause_t wakeup_reason;
+
+  wakeup_reason = esp_sleep_get_wakeup_cause();
+
+  switch (wakeup_reason) {
+    case ESP_SLEEP_WAKEUP_EXT0:     Serial.println("Wakeup caused by external signal using RTC_IO"); break;
+    case ESP_SLEEP_WAKEUP_EXT1:     Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
+    case ESP_SLEEP_WAKEUP_TIMER:    Serial.println("Wakeup caused by timer"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD: Serial.println("Wakeup caused by touchpad"); break;
+    case ESP_SLEEP_WAKEUP_ULP:      Serial.println("Wakeup caused by ULP program"); break;
+    default:                        Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason); break;
+  }
+}
+
 void setup() {
 
   //Serial - for debugging only
   Serial.begin(115200);
+
+  printWakeupReason();
 
   if (!canvas.getBuffer()) {
     Serial.println("ERROR: Could not allocate buffer for GFXcanvas1");
@@ -344,10 +388,12 @@ void setup() {
     }
   }
 
-  digitalWrite(LED_PIN_ESP32, HIGH); // Set LED to high, indicating that we have finished the programm
+  digitalWrite(LED_PIN_ESP32, LOW); // Set LED to low, indicating that we have finished the programm
+
+  gotoSleep();
 
 }
 
 void loop() {
-
+  //Won't get here
 }

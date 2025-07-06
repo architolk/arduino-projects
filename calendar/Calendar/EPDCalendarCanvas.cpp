@@ -253,3 +253,9 @@ void EPDCalendarCanvas::displayCalendarEntry(int mday, int wday, int hs, int ms,
   }
   setCursor(308,ypos+50);
 }
+
+void EPDCalendarCanvas::displayStatus(struct tm * timeinfo) {
+  String minStr = String(timeinfo->tm_min);
+  if (minStr.length()<2) {minStr = "0"+minStr;}
+  drawText(780,470,"Last updated: "+String(timeinfo->tm_hour)+minStr,2);
+}

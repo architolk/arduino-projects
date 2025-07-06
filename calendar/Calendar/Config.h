@@ -3,6 +3,11 @@
 
 #define LED_PIN_ESP32 21
 
+//Touch pin (10 = T10)
+//Treshold: lower values, more sensitive
+#define TOUCH_PIN_WAKEUP 10
+#define TOUCH_THRESHOLD 5000
+
 //SPI Pin config (for both displays)
 #define SPI_PIN_SCK  17
 #define SPI_PIN_MOSI 15
