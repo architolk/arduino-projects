@@ -10,7 +10,7 @@
 #include "src/APIClients/Weerlive.h"
 
 //Uncomment this to keep the display state persistant (the display won't be cleared, leaving the last image behind - not recommended if e-Paper is stored)
-//#define KEEP_DISPLAY_STATE
+#define KEEP_DISPLAY_STATE
 
 //In deep sleep, we can't upload stuff, so we need time before we go into deep sleep
 //Minimum 30 seconds, as compiling takes a long time!
@@ -55,6 +55,18 @@ void initialize() {
 
 int dayIndex(int month, int mday) {
   return month*31 + mday;
+}
+
+int readBatteryLevel() {
+  Serial.print("Analog read: ");
+  Serial.println(analogRead(BATTERY_LEVEL_PIN));
+  uint32_t batvolt = analogReadMilliVolts(BATTERY_LEVEL_PIN);
+  Serial.print("Milivolt read: ");
+  Serial.println(batvolt); //Battery voltage is half the actual voltage
+  Serial.print("Battery status: ");
+  Serial.print((batvolt-1300)/8); //Minimum voltage = 2500mV, Maximum voltage = 4200mV, don't know if we can reach that!
+  Serial.println("%");
+  return (batvolt-1300)/8;
 }
 
 void processCalendarEntries(boolean doUrgent) {
@@ -138,7 +150,7 @@ void updateTopDisplay() {
 
   processCalendarEntries(false); //Don't draw any red (=urgent) items
 
-  canvas.displayStatus(&CurrentTimeInfo);
+  canvas.displayStatus(&CurrentTimeInfo,readBatteryLevel());
 
   // done drawing, so send it off to the display
   TopDisplay.writeCanvas(&canvas, EPD_BLACK_WHITE_LAYER);
@@ -340,17 +352,36 @@ boolean setupWifi() {
   }
 }
 
+time_t calculateSecondsToSleep() {
+  struct tm nextDay;
+  //Update takes place nightly at 1:30
+  nextDay.tm_min = 30;
+  nextDay.tm_hour = 1;
+  nextDay.tm_sec = 0;
+  nextDay.tm_mday = CurrentTimeInfo.tm_mday+1;
+  nextDay.tm_mon = CurrentTimeInfo.tm_mon;
+  nextDay.tm_year = CurrentTimeInfo.tm_year;
+  nextDay.tm_isdst = CurrentTimeInfo.tm_isdst;
+  return (difftime(mktime(&nextDay),mktime(&CurrentTimeInfo)));
+}
+
 void gotoSleep() {
   Serial.print("ESP32 Deep sleep after sleep interval: ");
   Serial.println(SLEEP_INTERVAL);
   DEV_Delay_ms(SLEEP_INTERVAL);
 
+  time_t sleepTime = calculateSecondsToSleep();
+  Serial.print("Start sleeping for ");
+  Serial.print(sleepTime);
+  Serial.println(" seconds");
+
   // Should be depending on the current time, so we always sleep till 1:30 at night
-  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  esp_sleep_enable_timer_wakeup(uS_TO_S_FACTOR * sleepTime);
   //Enable touch wakeup
   touchSleepWakeUpEnable(TOUCH_PIN_WAKEUP, TOUCH_THRESHOLD);
 
-  Serial.println("Start sleeping");
+  Serial.println("Start sleeping in one second");
+  DEV_Delay_ms(1000);
   esp_deep_sleep_start();
 }
 
@@ -382,7 +413,7 @@ void setup() {
     initialize();
     if (setupWifi()) {
       updateTopDisplay();
-      //updateBottomDisplay();
+      updateBottomDisplay();
     } else {
       Serial.println("Wifi not available");
     }

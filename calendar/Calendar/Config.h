@@ -8,6 +8,9 @@
 #define TOUCH_PIN_WAKEUP 10
 #define TOUCH_THRESHOLD 5000
 
+//Battery level pin (Analog input pin, A0)
+#define BATTERY_LEVEL_PIN 4
+
 //SPI Pin config (for both displays)
 #define SPI_PIN_SCK  17
 #define SPI_PIN_MOSI 15

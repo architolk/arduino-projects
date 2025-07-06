@@ -111,7 +111,7 @@ void EPDCalendarCanvas::displayMinMaxTemperature(int minTemp, int maxTemp) {
 
 void EPDCalendarCanvas::displayForecast(const String &forecase) {
   setFont(&FreeSans10pt7b);
-  drawTextRect(10,420,220,20,forecase);
+  drawTextRect(10,405,220,20,forecase);
 }
 
 void EPDCalendarCanvas::displayWeatherIconRain(char image, int rainperc) {
@@ -254,8 +254,10 @@ void EPDCalendarCanvas::displayCalendarEntry(int mday, int wday, int hs, int ms,
   setCursor(308,ypos+50);
 }
 
-void EPDCalendarCanvas::displayStatus(struct tm * timeinfo) {
+void EPDCalendarCanvas::displayStatus(struct tm * timeinfo, int batLevel) {
   String minStr = String(timeinfo->tm_min);
   if (minStr.length()<2) {minStr = "0"+minStr;}
-  drawText(780,470,"Last updated: "+String(timeinfo->tm_hour)+minStr,2);
+  String secStr = String(timeinfo->tm_sec);
+  if (secStr.length()<2) {secStr = "0"+secStr;}
+  drawText(790,476,String(batLevel)+"% Battery. Last updated: "+String(timeinfo->tm_hour)+":"+minStr+":"+secStr,2);
 }

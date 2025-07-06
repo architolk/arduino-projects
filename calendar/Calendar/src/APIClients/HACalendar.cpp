@@ -10,6 +10,7 @@ void HACalendar::addDays(struct tm * timeinfo, struct tm * endtimeinfo, int days
   endtimeinfo->tm_hour = timeinfo->tm_hour;
   endtimeinfo->tm_min = timeinfo->tm_min;
   endtimeinfo->tm_sec = timeinfo->tm_sec;
+  endtimeinfo->tm_isdst = timeinfo->tm_isdst;
   mktime(endtimeinfo); //Create the correct struct
 }
 
