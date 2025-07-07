@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include "secrets.h"
+#include "../Debug.h"
 
 const char* images[] = {"zonnig","bliksem","regen","buien","hagel","mist","sneeuw","bewolkt","lichtbewolkt","halfbewolkt","halfbewolkt_regen","zwaarbewolkt","nachtmist","helderenacht","nachtbewolkt"};
 
@@ -24,6 +25,17 @@ int Weerlive::findHourIndex(const char* target) {
   return -1;
 }
 
+int Weerlive::findHourIndex(const char* target, int offset) {
+  int index = findHourIndex(target);
+  if (index>-1) {
+    index = index + offset;
+    if (index>=getHourCount()) {
+      index = index - getHourCount();
+    }
+  }
+  return index;
+}
+
 void Weerlive::retrieveWeatherData() {
   if(WiFi.status()== WL_CONNECTED){
     HTTPClient http;
@@ -43,29 +55,29 @@ void Weerlive::retrieveWeatherData() {
     int httpResponseCode = http.GET();
 
     if (httpResponseCode>0) {
-      Serial.print("HTTP Response code: ");
-      Serial.println(httpResponseCode);
+      Debug("HTTP Response code: ");
+      Debugln(httpResponseCode);
 
       String json = http.getString();
-      Serial.println("-------");
-      Serial.println(json);
-      Serial.println("-------");
+      Debugln("-------");
+      Debugln(json);
+      Debugln("-------");
       DeserializationError error = deserializeJson(response, json);
       if (error) {
-        Serial.print(F("deserializeJson() failed: "));
-        Serial.println(error.f_str());
+        Debug("deserializeJson() failed: ");
+        Debugln(error.f_str());
         return;
       }
     }
     else {
-      Serial.print("Error code: ");
-      Serial.println(httpResponseCode);
+      Debug("Error code: ");
+      Debugln(httpResponseCode);
     }
     // Free resources
     http.end();
   }
   else {
-    Serial.println("WiFi Disconnected");
+    Debugln("WiFi Disconnected");
   }
 }
 
@@ -99,14 +111,24 @@ size_t Weerlive::getDayCount() {
   return response["wk_verw"].as<JsonArray>().size();
 }
 
-hourWeather_t Weerlive::getHourWeather(const char* timestr) {
+double Weerlive::getTotalNeerslag(const char* timestr, int interval) {
+  double neerslag = 0;
+  for (int i=0; i<interval; i++) {
+    int index = findHourIndex(timestr,i);
+    double hourNeerslag = response["uur_verw"].as<JsonArray>()[index+i]["neersl"];
+    neerslag+= hourNeerslag;
+  }
+  return neerslag;
+}
+
+hourWeather_t Weerlive::getHourWeather(const char* timestr, int interval) {
   hourWeather_t hourWeather;
   int index = findHourIndex(timestr);
   if (index>=0) {
     hourWeather.temp = response["uur_verw"].as<JsonArray>()[index]["temp"];
     hourWeather.windbft = response["uur_verw"].as<JsonArray>()[index]["windbft"];
     hourWeather.windrgr = response["uur_verw"].as<JsonArray>()[index]["windrgr"];
-    hourWeather.neersl = response["uur_verw"].as<JsonArray>()[index]["neersl"];
+    hourWeather.neersl = getTotalNeerslag(timestr,interval); //Get total neerslag for the interval (not just one hour)
     hourWeather.image = char(65+findImageIndex(response["uur_verw"].as<JsonArray>()[index]["image"]));
   } else {
     //Default hourWeather

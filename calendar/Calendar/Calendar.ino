@@ -1,5 +1,9 @@
+//Uncomment in debug mode (writing stuff to serial)
+#define DEBUG
+
 #include <time.h>
 
+#include "src/Debug.h"
 #include "src/e-Paper/DEV_Tools.h"
 #include "src/e-Paper/EInkDisplay.h"
 #include "EPDCalendarCanvas.h"
@@ -12,6 +16,9 @@
 //Uncomment this to keep the display state persistant (the display won't be cleared, leaving the last image behind - not recommended if e-Paper is stored)
 #define KEEP_DISPLAY_STATE
 
+//Comment if you don't want the ESP32 to go into deep sleep
+#define ENABLE_DEEP_SLEEP
+
 //In deep sleep, we can't upload stuff, so we need time before we go into deep sleep
 //Minimum 30 seconds, as compiling takes a long time!
 //In production, this can be a much lower number
@@ -19,7 +26,6 @@
 
 //Timer
 #define uS_TO_S_FACTOR 1000000ULL  // Conversion factor for micro seconds to seconds
-#define TIME_TO_SLEEP  30
 
 //Displays
 EInkDisplay TopDisplay(TOP_PIN_CS, TOP_PIN_DC, TOP_PIN_RST, TOP_PIN_BUSY, TOP_PIN_PWR);
@@ -50,7 +56,7 @@ void initialize() {
   SPI.begin(SPI_PIN_SCK, SPI_PIN_MISO, SPI_PIN_MOSI);
   SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0)); //SPI pins are the default ones...
 
-  Serial.println("e-Paper Calendar");
+  Debugln("e-Paper Calendar");
 }
 
 int dayIndex(int month, int mday) {
@@ -58,14 +64,14 @@ int dayIndex(int month, int mday) {
 }
 
 int readBatteryLevel() {
-  Serial.print("Analog read: ");
-  Serial.println(analogRead(BATTERY_LEVEL_PIN));
+  Debug("Analog read: ");
+  Debugln(analogRead(BATTERY_LEVEL_PIN));
   uint32_t batvolt = analogReadMilliVolts(BATTERY_LEVEL_PIN);
-  Serial.print("Milivolt read: ");
-  Serial.println(batvolt); //Battery voltage is half the actual voltage
-  Serial.print("Battery status: ");
-  Serial.print((batvolt-1300)/8); //Minimum voltage = 2500mV, Maximum voltage = 4200mV, don't know if we can reach that!
-  Serial.println("%");
+  Debug("Milivolt read: ");
+  Debugln(batvolt); //Battery voltage is half the actual voltage
+  Debug("Battery status: ");
+  Debug((batvolt-1300)/8); //Minimum voltage = 2500mV, Maximum voltage = 4200mV, don't know if we can reach that!
+  Debugln("%");
   return (batvolt-1300)/8;
 }
 
@@ -127,13 +133,13 @@ void processCalendarEntries(boolean doUrgent) {
 
 void updateTopDisplay() {
 
-  Serial.println("TopDisplay: e-Paper activated");
+  Debugln("TopDisplay: e-Paper activated");
   TopDisplay.activate(); //This will power on the display, and set the chip-select to this particular display
 
   //Initialize screen
   TopDisplay.init();
 
-  Serial.println("e-Paper initialized, start drawing");
+  Debugln("e-Paper initialized, start drawing");
   //1 = White, 0 = Black
   canvas.fillScreen(1);      // fill background
   canvas.setTextColor(0, 1); // black text, white background
@@ -167,30 +173,30 @@ void updateTopDisplay() {
   // NB: You should always end with "1" even if no red layer is present (because only at "1" the display is turned on!)
   TopDisplay.writeCanvas(&canvas, EPD_WHITE_RED_LAYER);  // 1 = red layer layer
 
-  Serial.println("Display has been updated");
+  Debugln("Display has been updated");
 
   #ifndef KEEP_DISPLAY_STATE
 
-    Serial.println("Wait 5 seconds before display is cleared");
+    Debugln("Wait 5 seconds before display is cleared");
     DEV_Delay_ms(5000);
 
-    Serial.println("Clear...(to put the e-Paper in it's original clear screen)");
+    Debugln("Clear...(to put the e-Paper in it's original clear screen)");
     TopDisplay.init();
     TopDisplay.clear();
   #endif
 
-  Serial.println("Display sleep...");
+  Debugln("Display sleep...");
   TopDisplay.sleep();
 
   // close PWR
-  Serial.println("close PWR, Module enters 0 power consumption ...");
+  Debugln("close PWR, Module enters 0 power consumption ...");
   TopDisplay.deactivate();
 
 }
 
 void updateBottomDisplay() {
 
-  Serial.println("BottomDisplay: e-Paper activated");
+  Debugln("BottomDisplay: e-Paper activated");
   BottomDisplay.activate(); //This will power on the display, and set the chip-select to this particular display
 
   //Initialize screen
@@ -207,15 +213,15 @@ void updateBottomDisplay() {
   canvas.drawText(675,25,"23:00");
 
   //Incorrect: index is not what we want, but the actual hours!
-  hourWeather_t hourWeather = weather.getHourWeather("03:00");
+  hourWeather_t hourWeather = weather.getHourWeather("03:00",4);
   canvas.displayHourWeather(0, hourWeather.image, hourWeather.temp, hourWeather.windrgr, hourWeather.windbft, hourWeather.neersl);
-  hourWeather = weather.getHourWeather("07:00");
+  hourWeather = weather.getHourWeather("07:00",5);
   canvas.displayHourWeather(1, hourWeather.image, hourWeather.temp, hourWeather.windrgr, hourWeather.windbft, hourWeather.neersl);
-  hourWeather = weather.getHourWeather("12:00");
+  hourWeather = weather.getHourWeather("12:00",6);
   canvas.displayHourWeather(2, hourWeather.image, hourWeather.temp, hourWeather.windrgr, hourWeather.windbft, hourWeather.neersl);
-  hourWeather = weather.getHourWeather("18:00");
+  hourWeather = weather.getHourWeather("18:00",5);
   canvas.displayHourWeather(3, hourWeather.image, hourWeather.temp, hourWeather.windrgr, hourWeather.windbft, hourWeather.neersl);
-  hourWeather = weather.getHourWeather("23:00");
+  hourWeather = weather.getHourWeather("23:00",4);
   canvas.displayHourWeather(4, hourWeather.image, hourWeather.temp, hourWeather.windrgr, hourWeather.windbft, hourWeather.neersl);
 
   canvas.displayMonthCalendar(&CurrentTimeInfo);
@@ -256,29 +262,30 @@ void updateBottomDisplay() {
   // NB: You should always end with "1" even if no red layer is present (because only at "1" the display is turned on!)
   BottomDisplay.writeCanvas(&canvas, EPD_WHITE_RED_LAYER);  // 1 = red layer layer
 
-  Serial.println("Display has been updated");
+  Debugln("Display has been updated");
 
   #ifndef KEEP_DISPLAY_STATE
 
-    Serial.println("Wait 5 seconds before display is cleared");
+    Debugln("Wait 5 seconds before display is cleared");
     DEV_Delay_ms(5000);
 
-    Serial.println("Clear...(to put the e-Paper in it's original clear screen)");
+    Debugln("Clear...(to put the e-Paper in it's original clear screen)");
     BottomDisplay.init();
     BottomDisplay.clear();
   #endif
 
-  Serial.println("Display sleep...");
+  Debugln("Display sleep...");
   BottomDisplay.sleep();
 
   // close PWR
-  Serial.println("close PWR, Module enters 0 power consumption ...");
+  Debugln("close PWR, Module enters 0 power consumption ...");
   BottomDisplay.deactivate();
 
 }
 
 void setTimezone(String timezone) {
-  Serial.printf("Setting Timezone to %s\n",timezone.c_str());
+  Debug("Setting Timezone to ");
+  Debugln(timezone.c_str());
   setenv("TZ",timezone.c_str(),1);  //  Now adjust the TZ.  Clock settings are adjusted to show the new local time
   tzset();
 }
@@ -295,7 +302,8 @@ void setTime(int yr, int month, int mday, int hr, int minute, int sec, int isDst
   tm.tm_sec = sec;
   tm.tm_isdst = isDst;  // 1 or 0
   time_t t = mktime(&tm);
-  Serial.printf("Setting time: %s", asctime(&tm));
+  Debug("Setting time: ");
+  Debugln(asctim(&tm));
   setTime(t);
 }
 
@@ -313,14 +321,14 @@ void setupTime() {
     setTime(weather.getTimestamp()); //Set time retrieved from the weather API
   } else {
     //Fallback (only works after deep sleep - doesn't work after reset!)
-    Serial.println("Failed to get timestamp from weather API, use value from RTC");
+    Debugln("Failed to get timestamp from weather API, use value from RTC");
     /*
     setTime(2025,6,30,21,20,0,0); //11-22-2025 21:20:00 No daylight saving time - but can this not be done automatically?
     */
   }
 
   if(!getLocalTime(&CurrentTimeInfo)){
-    Serial.println("Failed to obtain time - set default value");
+    Debugln("Failed to obtain time - set default value");
     CurrentTimeInfo.tm_year = 2025 - 1900;   // Set date
     CurrentTimeInfo.tm_mon = 6-1;
     CurrentTimeInfo.tm_mday = 30;
@@ -334,11 +342,11 @@ void setupTime() {
 
 boolean setupWifi() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.println("Connecting");
+  Debugln("Connecting");
   int count = 0;
   while((count<40) && (WiFi.status() != WL_CONNECTED)) {
     delay(500);
-    Serial.print(".");
+    Debug(".");
     count++;
   }
   if (WiFi.status()==WL_CONNECTED) {
@@ -366,21 +374,21 @@ time_t calculateSecondsToSleep() {
 }
 
 void gotoSleep() {
-  Serial.print("ESP32 Deep sleep after sleep interval: ");
-  Serial.println(SLEEP_INTERVAL);
+  Debug("ESP32 Deep sleep after sleep interval: ");
+  Debugln(SLEEP_INTERVAL);
   DEV_Delay_ms(SLEEP_INTERVAL);
 
   time_t sleepTime = calculateSecondsToSleep();
-  Serial.print("Start sleeping for ");
-  Serial.print(sleepTime);
-  Serial.println(" seconds");
+  Debug("Start sleeping for ");
+  Debug(sleepTime);
+  Debugln(" seconds");
 
   // Should be depending on the current time, so we always sleep till 1:30 at night
   esp_sleep_enable_timer_wakeup(uS_TO_S_FACTOR * sleepTime);
   //Enable touch wakeup
   touchSleepWakeUpEnable(TOUCH_PIN_WAKEUP, TOUCH_THRESHOLD);
 
-  Serial.println("Start sleeping in one second");
+  Debugln("Start sleeping in one second");
   DEV_Delay_ms(1000);
   esp_deep_sleep_start();
 }
@@ -391,12 +399,12 @@ void printWakeupReason() {
   wakeup_reason = esp_sleep_get_wakeup_cause();
 
   switch (wakeup_reason) {
-    case ESP_SLEEP_WAKEUP_EXT0:     Serial.println("Wakeup caused by external signal using RTC_IO"); break;
-    case ESP_SLEEP_WAKEUP_EXT1:     Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
-    case ESP_SLEEP_WAKEUP_TIMER:    Serial.println("Wakeup caused by timer"); break;
-    case ESP_SLEEP_WAKEUP_TOUCHPAD: Serial.println("Wakeup caused by touchpad"); break;
-    case ESP_SLEEP_WAKEUP_ULP:      Serial.println("Wakeup caused by ULP program"); break;
-    default:                        Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason); break;
+    case ESP_SLEEP_WAKEUP_EXT0:     Debugln("Wakeup caused by external signal using RTC_IO"); break;
+    case ESP_SLEEP_WAKEUP_EXT1:     Debugln("Wakeup caused by external signal using RTC_CNTL"); break;
+    case ESP_SLEEP_WAKEUP_TIMER:    Debugln("Wakeup caused by timer"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD: Debugln("Wakeup caused by touchpad"); break;
+    case ESP_SLEEP_WAKEUP_ULP:      Debugln("Wakeup caused by ULP program"); break;
+    default:                        Debug("Wakeup was not caused by deep sleep: "); Debugln(wakeup_reason); break;
   }
 }
 
@@ -408,20 +416,22 @@ void setup() {
   printWakeupReason();
 
   if (!canvas.getBuffer()) {
-    Serial.println("ERROR: Could not allocate buffer for GFXcanvas1");
+    Debugln("ERROR: Could not allocate buffer for GFXcanvas1");
   } else {
     initialize();
     if (setupWifi()) {
       updateTopDisplay();
       updateBottomDisplay();
     } else {
-      Serial.println("Wifi not available");
+      Debugln("Wifi not available");
     }
   }
 
   digitalWrite(LED_PIN_ESP32, LOW); // Set LED to low, indicating that we have finished the programm
 
+#ifndef ENABLE_DEEP_SLEEP
   gotoSleep();
+#endif
 
 }
 

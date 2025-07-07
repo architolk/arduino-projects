@@ -27,13 +27,15 @@ class Weerlive {
     time_t getTimestamp();
     String getForecast();
     dayWeather_t getDayWeather(int index);
-    hourWeather_t getHourWeather(const char* timestr);
+    hourWeather_t getHourWeather(const char* timestr, int interval);
     size_t getDayCount();
   protected:
     JsonDocument response;
     size_t getHourCount();
     int findImageIndex(const char* target);
     int findHourIndex(const char* target);
+    int findHourIndex(const char* target, int offset);
+    double getTotalNeerslag(const char* timestr, int interval);
 };
 
 #endif

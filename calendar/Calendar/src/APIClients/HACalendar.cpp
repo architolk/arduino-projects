@@ -2,6 +2,10 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include "secrets.h"
+#include "../Debug.h"
+
+//Total extra days to retrieve (13 are needed to populate two weeks when the current day is a monday)
+#define NUM_DAYS_RETRIEVE 13
 
 void HACalendar::addDays(struct tm * timeinfo, struct tm * endtimeinfo, int days) {
   endtimeinfo->tm_year = timeinfo->tm_year;
@@ -22,15 +26,15 @@ void HACalendar::retrieveCalendarData(struct tm * timeinfo, String calendarName)
     strftime(dateBuf,11,"%Y-%m-%d",timeinfo);
     String params="?start="+String(dateBuf)+"T00:00:00.000Z&end=";
     struct tm endtimeinfo;
-    addDays(timeinfo,&endtimeinfo,7);
+    addDays(timeinfo,&endtimeinfo,NUM_DAYS_RETRIEVE);
     strftime(dateBuf,11,"%Y-%m-%d",&endtimeinfo);
-    params = params + String(dateBuf)+"T00:00:00.000Z";
+    params = params + String(dateBuf)+"T23:59:59.000Z";
 
     String serverName = "http://192.168.178.47:8123/api/calendars/calendar."+calendarName;
     String serverPath = serverName + params;
 
-    Serial.println("HTTP GET:");
-    Serial.println(serverPath);
+    Debugln("HTTP GET:");
+    Debugln(serverPath);
 
     // Your Domain name with URL path or IP address with path
     http.begin(serverPath.c_str());
@@ -41,32 +45,32 @@ void HACalendar::retrieveCalendarData(struct tm * timeinfo, String calendarName)
     int httpResponseCode = http.GET();
 
     if (httpResponseCode>0) {
-      Serial.print("HTTP Response code: ");
-      Serial.println(httpResponseCode);
+      Debug("HTTP Response code: ");
+      Debugln(httpResponseCode);
 
       String json = http.getString();
-      Serial.println("-------");
-      Serial.println(json);
-      Serial.println("-------");
+      Debugln("-------");
+      Debugln(json);
+      Debugln("-------");
       DeserializationError error = deserializeJson(response, json);
       if (error) {
-        Serial.print(F("deserializeJson() failed: "));
-        Serial.println(error.f_str());
+        Debug("deserializeJson() failed: ");
+        Debugln(error.f_str());
         return;
       }
 
-      Serial.println(response.as<JsonArray>().size());
+      Debugln(response.as<JsonArray>().size());
 
     }
     else {
-      Serial.print("Error code: ");
-      Serial.println(httpResponseCode);
+      Debug("Error code: ");
+      Debugln(httpResponseCode);
     }
     // Free resources
     http.end();
   }
   else {
-    Serial.println("WiFi Disconnected");
+    Debugln("WiFi Disconnected");
   }
 
 }
