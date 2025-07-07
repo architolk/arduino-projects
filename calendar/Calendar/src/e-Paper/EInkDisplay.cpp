@@ -1,4 +1,5 @@
 #include "EInkDisplay.h"
+#include "../Debug.h"
 
 EInkDisplay::EInkDisplay(uint8_t pinCS, uint8_t pinDC, uint8_t pinRST, uint8_t pinBUSY, uint8_t pinPWR) {
   _pinCS = pinCS;
@@ -165,7 +166,7 @@ void EInkDisplay::EPD_7IN5B_V2_SendData(UBYTE Data) {
 
 void EInkDisplay::EPD_7IN5B_V2_WaitUntilIdle() {
   if (active) {
-  	Serial.print("e-Paper busy\r\n");
+  	Debugln("e-Paper busy");
   	unsigned char busy;
   	do	{
   		EPD_7IN5B_V2_SendCommand(0x71);
@@ -173,7 +174,7 @@ void EInkDisplay::EPD_7IN5B_V2_WaitUntilIdle() {
   		busy =!(busy & 0x01);
   	}while(busy);
   	DEV_Delay_ms(200);
-  	Serial.print("e-Paper busy release\r\n");
+  	Debugln("e-Paper busy release");
   }
 }
 

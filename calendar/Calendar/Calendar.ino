@@ -303,7 +303,7 @@ void setTime(int yr, int month, int mday, int hr, int minute, int sec, int isDst
   tm.tm_isdst = isDst;  // 1 or 0
   time_t t = mktime(&tm);
   Debug("Setting time: ");
-  Debugln(asctim(&tm));
+  Debugln(asctime(&tm));
   setTime(t);
 }
 
@@ -352,8 +352,8 @@ boolean setupWifi() {
   if (WiFi.status()==WL_CONNECTED) {
     weather.retrieveWeatherData();
     setupTime();
-    calFamily.retrieveCalendarData(&CurrentTimeInfo,"familie");
-    calBirthdays.retrieveCalendarData(&CurrentTimeInfo,"verjaardagen");
+    calFamily.retrieveCalendarData(&CurrentTimeInfo,"familie",7); //Max one week for family events (top screen)
+    calBirthdays.retrieveCalendarData(&CurrentTimeInfo,"verjaardagen",14); //Max two weeks for birthday events (top & bottom screens)
     return true;
   } else {
     return false;

@@ -4,9 +4,6 @@
 #include "secrets.h"
 #include "../Debug.h"
 
-//Total extra days to retrieve (13 are needed to populate two weeks when the current day is a monday)
-#define NUM_DAYS_RETRIEVE 13
-
 void HACalendar::addDays(struct tm * timeinfo, struct tm * endtimeinfo, int days) {
   endtimeinfo->tm_year = timeinfo->tm_year;
   endtimeinfo->tm_mon = timeinfo->tm_mon;
@@ -18,7 +15,7 @@ void HACalendar::addDays(struct tm * timeinfo, struct tm * endtimeinfo, int days
   mktime(endtimeinfo); //Create the correct struct
 }
 
-void HACalendar::retrieveCalendarData(struct tm * timeinfo, String calendarName) {
+void HACalendar::retrieveCalendarData(struct tm * timeinfo, String calendarName, int numdays) {
   if(WiFi.status()== WL_CONNECTED){
     HTTPClient http;
 
@@ -26,7 +23,7 @@ void HACalendar::retrieveCalendarData(struct tm * timeinfo, String calendarName)
     strftime(dateBuf,11,"%Y-%m-%d",timeinfo);
     String params="?start="+String(dateBuf)+"T00:00:00.000Z&end=";
     struct tm endtimeinfo;
-    addDays(timeinfo,&endtimeinfo,NUM_DAYS_RETRIEVE);
+    addDays(timeinfo,&endtimeinfo,numdays-1); //Extra days is one less than total days
     strftime(dateBuf,11,"%Y-%m-%d",&endtimeinfo);
     params = params + String(dateBuf)+"T23:59:59.000Z";
 

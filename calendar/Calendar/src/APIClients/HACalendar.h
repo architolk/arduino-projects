@@ -22,7 +22,7 @@ struct entry_t {
 
 class HACalendar {
   public:
-    void retrieveCalendarData(struct tm * timeinfo, String calendarName);
+    void retrieveCalendarData(struct tm * timeinfo, String calendarName, int numdays);
     size_t getEntryCount();
     entry_t getEntry(int index);
   protected:
