@@ -1,6 +1,3 @@
-//Uncomment in debug mode (writing stuff to serial)
-#define DEBUG
-
 #include <time.h>
 
 #include "src/Debug.h"
@@ -12,6 +9,8 @@
 #include "src/APIClients/secrets.h"
 #include "src/APIClients/HACalendar.h"
 #include "src/APIClients/Weerlive.h"
+
+//See src/Debug.h for enabling debug mode
 
 //Uncomment this to keep the display state persistant (the display won't be cleared, leaving the last image behind - not recommended if e-Paper is stored)
 #define KEEP_DISPLAY_STATE
@@ -429,7 +428,7 @@ void setup() {
 
   digitalWrite(LED_PIN_ESP32, LOW); // Set LED to low, indicating that we have finished the programm
 
-#ifndef ENABLE_DEEP_SLEEP
+#ifdef ENABLE_DEEP_SLEEP
   gotoSleep();
 #endif
 
