@@ -2,7 +2,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include "secrets.h"
-#include "../Debug.h"
+#include "../../Debug.h"
 
 const char* images[] = {"zonnig","bliksem","regen","buien","hagel","mist","sneeuw","bewolkt","lichtbewolkt","halfbewolkt","halfbewolkt_regen","zwaarbewolkt","nachtmist","helderenacht","nachtbewolkt"};
 

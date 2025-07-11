@@ -2,7 +2,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include "secrets.h"
-#include "../Debug.h"
+#include "../../Debug.h"
 
 void HACalendar::addDays(struct tm * timeinfo, struct tm * endtimeinfo, int days) {
   endtimeinfo->tm_year = timeinfo->tm_year;

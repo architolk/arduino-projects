@@ -19,6 +19,7 @@
 #include "src/Fonts/WeatherIcons26pt7b.h"
 #include "src/Fonts/WeatherIcons36pt7b.h"
 #include "src/Fonts/WeatherIcons50pt7b.h"
+#include "src/Fonts/CalendarIcons12pt7b.h"
 
 class EPDCalendarCanvas : public EPDCanvas {
   public:

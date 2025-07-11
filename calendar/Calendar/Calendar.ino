@@ -1,6 +1,6 @@
 #include <time.h>
 
-#include "src/Debug.h"
+#include "Debug.h"
 #include "src/e-Paper/DEV_Tools.h"
 #include "src/e-Paper/EInkDisplay.h"
 #include "EPDCalendarCanvas.h"
@@ -10,7 +10,7 @@
 #include "src/APIClients/HACalendar.h"
 #include "src/APIClients/Weerlive.h"
 
-//See src/Debug.h for enabling debug mode
+//See Debug.h for enabling debug mode
 
 //Uncomment this to keep the display state persistant (the display won't be cleared, leaving the last image behind - not recommended if e-Paper is stored)
 #define KEEP_DISPLAY_STATE
@@ -205,22 +205,21 @@ void updateBottomDisplay() {
   canvas.setTextColor(0, 1); // black text, white background
 
   canvas.setFont(&FreeSansBold16pt7b);
-  canvas.drawText(40,25,"3:00");
-  canvas.drawText(200,25,"7:00");
-  canvas.drawText(350,25,"12:00");
+  canvas.drawText(40,25,"5:00");
+  canvas.drawText(200,25,"10:00");
+  canvas.drawText(350,25,"14:00");
   canvas.drawText(510,25,"18:00");
   canvas.drawText(675,25,"23:00");
 
-  //Incorrect: index is not what we want, but the actual hours!
-  hourWeather_t hourWeather = weather.getHourWeather("03:00",4);
+  hourWeather_t hourWeather = weather.getHourWeather("05:00",5);
   canvas.displayHourWeather(0, hourWeather.image, hourWeather.temp, hourWeather.windrgr, hourWeather.windbft, hourWeather.neersl);
-  hourWeather = weather.getHourWeather("07:00",5);
+  hourWeather = weather.getHourWeather("10:00",4);
   canvas.displayHourWeather(1, hourWeather.image, hourWeather.temp, hourWeather.windrgr, hourWeather.windbft, hourWeather.neersl);
-  hourWeather = weather.getHourWeather("12:00",6);
+  hourWeather = weather.getHourWeather("14:00",4);
   canvas.displayHourWeather(2, hourWeather.image, hourWeather.temp, hourWeather.windrgr, hourWeather.windbft, hourWeather.neersl);
   hourWeather = weather.getHourWeather("18:00",5);
   canvas.displayHourWeather(3, hourWeather.image, hourWeather.temp, hourWeather.windrgr, hourWeather.windbft, hourWeather.neersl);
-  hourWeather = weather.getHourWeather("23:00",4);
+  hourWeather = weather.getHourWeather("23:00",6);
   canvas.displayHourWeather(4, hourWeather.image, hourWeather.temp, hourWeather.windrgr, hourWeather.windbft, hourWeather.neersl);
 
   canvas.displayMonthCalendar(&CurrentTimeInfo);
@@ -361,9 +360,9 @@ boolean setupWifi() {
 
 time_t calculateSecondsToSleep() {
   struct tm nextDay;
-  //Update takes place nightly at 1:30
+  //Update takes place nightly at 4:30
   nextDay.tm_min = 30;
-  nextDay.tm_hour = 1;
+  nextDay.tm_hour = 4;
   nextDay.tm_sec = 0;
   nextDay.tm_mday = CurrentTimeInfo.tm_mday+1;
   nextDay.tm_mon = CurrentTimeInfo.tm_mon;
@@ -382,7 +381,7 @@ void gotoSleep() {
   Debug(sleepTime);
   Debugln(" seconds");
 
-  // Should be depending on the current time, so we always sleep till 1:30 at night
+  // Should be depending on the current time, so we always sleep till a particular wake-up time each night
   esp_sleep_enable_timer_wakeup(uS_TO_S_FACTOR * sleepTime);
   //Enable touch wakeup
   touchSleepWakeUpEnable(TOUCH_PIN_WAKEUP, TOUCH_THRESHOLD);

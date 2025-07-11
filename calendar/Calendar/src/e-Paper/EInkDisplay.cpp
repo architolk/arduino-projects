@@ -1,5 +1,5 @@
 #include "EInkDisplay.h"
-#include "../Debug.h"
+#include "../../Debug.h"
 
 EInkDisplay::EInkDisplay(uint8_t pinCS, uint8_t pinDC, uint8_t pinRST, uint8_t pinBUSY, uint8_t pinPWR) {
   _pinCS = pinCS;

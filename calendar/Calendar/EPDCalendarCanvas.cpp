@@ -134,7 +134,7 @@ void EPDCalendarCanvas::displayHourWeather(int index, char image, int temp, int 
   drawText(getCursorX(),52,"o"); //Degrees symbol
   //Wind direction icon
   drawCircle(100+160*index,95,10,0);
-  fillRotatedTriangle(100+160*index, 95, 8, winddeg-90); //North = 0, but geometrically 0 is on the Y-axis!
+  fillRotatedTriangle(100+160*index, 95, 8, winddeg+90); //North = 0, but geometrically 0 is on the Y-axis! So -90 points to North. BUT wind COMES from a direction, so +180 is needed: -90+180 = +90
   //Rain, wind
   setFont(&FreeSansBold8pt7b);
   drawText(45+160*index,128,String(rain,1)+" mm",1);
@@ -198,7 +198,7 @@ void EPDCalendarCanvas::displayCalendarWeather(struct tm * timeinfo, int index, 
 }
 
 boolean EPDCalendarCanvas::calendarSpaceAvailable() {
-  return (getCursorY()<430);
+  return (getCursorY()<420);
 }
 
 void EPDCalendarCanvas::displayCalendarResetDayCursor() {
@@ -232,10 +232,15 @@ void EPDCalendarCanvas::displayCalendarEntry(int mday, int wday, int hs, int ms,
   }
   fillRect(308,ypos,2,50,0);
   if (displayType) {
+    //New solution with real icons
+    setFont(&CalendarIcons12pt7b);
+    drawText(390,20+ypos,String(type),1);
+    /*
     fillCircle(390,12+ypos,10,0);
     setTextColor(1, 0); // white text, black background
     setFont(&FreeSansBold8pt7b);
     drawText(390,18+ypos,String(type),1);
+    */
   }
   setTextColor(0, 1); // black text, white background
   setFont(&FreeSans10pt7b);
