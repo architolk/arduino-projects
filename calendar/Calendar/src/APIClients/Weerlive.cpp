@@ -48,6 +48,9 @@ void Weerlive::retrieveWeatherData() {
     String serverName = "https://weerlive.nl/api/weerlive_api_v2.php";
     String serverPath = serverName + params;
 
+    Debugln("HTTP GET:");
+    Debugln(serverPath);
+
     // Your Domain name with URL path or IP address with path
     http.begin(serverPath.c_str());
 

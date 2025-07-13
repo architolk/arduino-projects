@@ -18,6 +18,9 @@
 //Comment if you don't want the ESP32 to go into deep sleep
 #define ENABLE_DEEP_SLEEP
 
+//Comment if you don't want the displays to be updated
+#define UPDATE_SCREENS
+
 //In deep sleep, we can't upload stuff, so we need time before we go into deep sleep
 //Minimum 30 seconds, as compiling takes a long time!
 //In production, this can be a much lower number
@@ -69,9 +72,14 @@ int readBatteryLevel() {
   Debug("Milivolt read: ");
   Debugln(batvolt); //Battery voltage is half the actual voltage
   Debug("Battery status: ");
-  Debug((batvolt-1300)/8); //Minimum voltage = 2500mV, Maximum voltage = 4200mV, don't know if we can reach that!
-  Debugln("%");
-  return (batvolt-1300)/8;
+  if (batvolt<1300) {
+    Debug("No battery?");
+    return 0;
+  } else {
+    Debug((batvolt-1300)/8); //Minimum voltage = 2500mV, Maximum voltage = 4200mV, don't know if we can reach that!
+    Debugln("%");
+    return (batvolt-1300)/8;
+  }
 }
 
 void processCalendarEntries(boolean doUrgent) {
@@ -320,20 +328,20 @@ void setupTime() {
   } else {
     //Fallback (only works after deep sleep - doesn't work after reset!)
     Debugln("Failed to get timestamp from weather API, use value from RTC");
-    /*
-    setTime(2025,6,30,21,20,0,0); //11-22-2025 21:20:00 No daylight saving time - but can this not be done automatically?
-    */
+    //Getting timestamp from RTC is done in the getLocalTime function, so nothing to do here
   }
 
   if(!getLocalTime(&CurrentTimeInfo)){
     Debugln("Failed to obtain time - set default value");
     CurrentTimeInfo.tm_year = 2025 - 1900;   // Set date
-    CurrentTimeInfo.tm_mon = 6-1;
-    CurrentTimeInfo.tm_mday = 30;
-    CurrentTimeInfo.tm_hour = 21;      // Set time
-    CurrentTimeInfo.tm_min = 20;
+    CurrentTimeInfo.tm_mon = 7-1;
+    CurrentTimeInfo.tm_mday = 13;
+    CurrentTimeInfo.tm_hour = 9;      // Set time
+    CurrentTimeInfo.tm_min = 30;
     CurrentTimeInfo.tm_sec = 0;
     CurrentTimeInfo.tm_isdst = 1;  // 1 or 0
+    epoch = mktime(&CurrentTimeInfo);
+    setTime(epoch);
   }
 
 }
@@ -348,6 +356,7 @@ boolean setupWifi() {
     count++;
   }
   if (WiFi.status()==WL_CONNECTED) {
+    Debugln("Connected to wifi");
     weather.retrieveWeatherData();
     setupTime();
     calFamily.retrieveCalendarData(&CurrentTimeInfo,"familie",7); //Max one week for family events (top screen)
@@ -418,8 +427,10 @@ void setup() {
   } else {
     initialize();
     if (setupWifi()) {
+#ifdef UPDATE_SCREENS
       updateTopDisplay();
       updateBottomDisplay();
+#endif
     } else {
       Debugln("Wifi not available");
     }

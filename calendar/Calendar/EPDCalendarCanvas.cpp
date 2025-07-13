@@ -88,7 +88,7 @@ void EPDCalendarCanvas::displayMonthInfo(struct tm * timeinfo) {
 void EPDCalendarCanvas::displayMonthInfoCurrentDay(struct tm * timeinfo) {
   int16_t xpos = 20+30*getDayColumn(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday);
   int16_t ypos = 170+20*getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday);
-  fillCircle(xpos,ypos-5,10,1); //Red filling
+  fillCircle(xpos+1,ypos-5,10,1); //Red filling
   setTextColor(0, 1); //Red background, white text
   setFont(&FreeSansBold8pt7b);
   drawText(xpos,ypos,String(timeinfo->tm_mday),1);
@@ -212,10 +212,16 @@ void EPDCalendarCanvas::displayCalendarEntryUrgent(int mday, char type, boolean 
     ypos+=10; //Add 10 pixels for separation between days
   }
   if (displayType) {
+    //New solution with real icons
+    setTextColor(1, 0); // red text, white background
+    setFont(&CalendarIcons12pt7b);
+    drawText(390,20+ypos,String(type),1);
+    /*
     fillCircle(390,12+ypos,10,1); //Red
     setTextColor(0, 1); // white text, red background
     setFont(&FreeSansBold8pt7b);
     drawText(390,18+ypos,String(type),1);
+    */
   }
   setCursor(308,ypos+50);
 }
