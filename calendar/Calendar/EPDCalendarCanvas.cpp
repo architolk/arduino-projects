@@ -151,6 +151,16 @@ void EPDCalendarCanvas::displayMonthCalendar(struct tm * timeinfo) {
     }
   }
 
+  //Print day names
+  setFont(&FreeSans10pt7b);
+  drawText(5+113*0,160,"MA");
+  drawText(5+113*1,160,"DI");
+  drawText(5+113*2,160,"WO");
+  drawText(5+113*3,160,"DO");
+  drawText(5+113*4,160,"VR");
+  drawText(5+113*5,160,"ZA");
+  drawText(5+113*6,160,"ZO");
+
   //Print numbers
   setFont(&FreeSans16pt7b);
   int currentDayRow = getDayRow(timeinfo->tm_wday,timeinfo->tm_mday,timeinfo->tm_mday);
@@ -205,7 +215,7 @@ void EPDCalendarCanvas::displayCalendarResetDayCursor() {
   dayCursor = 0;
 }
 
-void EPDCalendarCanvas::displayCalendarEntryUrgent(int mday, char type, boolean displayType) {
+void EPDCalendarCanvas::displayCalendarEntryUrgent(int mday, char type, boolean fullDay, boolean displayType) {
   int16_t ypos = getCursorY(); //16 (-10) standaard
   if (mday!=dayCursor) {
     dayCursor = mday;
@@ -223,7 +233,11 @@ void EPDCalendarCanvas::displayCalendarEntryUrgent(int mday, char type, boolean 
     drawText(390,18+ypos,String(type),1);
     */
   }
-  setCursor(308,ypos+50);
+  if (!fullDay) {
+    setCursor(308,ypos+50);
+  } else {
+    setCursor(308,ypos+36);
+  }
 }
 
 void EPDCalendarCanvas::displayCalendarEntry(int mday, int wday, int hs, int ms, int he, int me, char type, boolean fullDay, boolean displayType, const String description) {
@@ -261,8 +275,10 @@ void EPDCalendarCanvas::displayCalendarEntry(int mday, int wday, int hs, int ms,
     setFont(&FreeSansBold8pt7b);
     drawText(370,38+ypos,String(he)+":"+meStr,2);
     drawTimeRect(380,32+ypos,hs,ms,he,me);
+    setCursor(308,ypos+50);
+  } else {
+    setCursor(308,ypos+36); //Full day events need less space
   }
-  setCursor(308,ypos+50);
 }
 
 void EPDCalendarCanvas::displayStatus(struct tm * timeinfo, int batLevel) {
@@ -270,5 +286,6 @@ void EPDCalendarCanvas::displayStatus(struct tm * timeinfo, int batLevel) {
   if (minStr.length()<2) {minStr = "0"+minStr;}
   String secStr = String(timeinfo->tm_sec);
   if (secStr.length()<2) {secStr = "0"+secStr;}
+  setFont(&FreeSansBold8pt7b);
   drawText(790,476,String(batLevel)+"% Battery. Last updated: "+String(timeinfo->tm_hour)+":"+minStr+":"+secStr,2);
 }

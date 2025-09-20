@@ -16,7 +16,7 @@
 #define KEEP_DISPLAY_STATE
 
 //Comment if you don't want the ESP32 to go into deep sleep
-#define ENABLE_DEEP_SLEEP
+//#define ENABLE_DEEP_SLEEP
 
 //Comment if you don't want the displays to be updated
 #define UPDATE_SCREENS
@@ -72,14 +72,34 @@ int readBatteryLevel() {
   Debug("Milivolt read: ");
   Debugln(batvolt); //Battery voltage is half the actual voltage
   Debug("Battery status: ");
-  if (batvolt<1300) {
-    Debug("No battery?");
-    return 0;
-  } else {
-    Debug((batvolt-1300)/8); //Minimum voltage = 2500mV, Maximum voltage = 4200mV, don't know if we can reach that!
-    Debugln("%");
-    return (batvolt-1300)/8;
+  int batperc = -1;
+  if (batvolt>2075) { //4.15V and more
+    batperc = 100;
+  } else if (batvolt>2040) { //4.08V - 4.15V
+    batperc = 90;
+  } else if (batvolt>1990) { //3.98V - 4.08V
+    batperc = 80;
+  } else if (batvolt>1955) { //3.91V - 3.98V
+    batperc = 70;
+  } else if (batvolt>1925) { //3.85V - 3.91V
+    batperc = 60;
+  } else if (batvolt>1910) { //3.82V - 3.85V
+    batperc = 50;
+  } else if (batvolt>1895) { //3.79V - 3.82V
+    batperc = 40;
+  } else if (batvolt>1875) { //3.75V - 3.79V
+    batperc = 30;
+  } else if (batvolt>1855) { //3.71V - 3.75V
+    batperc = 20;
+  } else if (batvolt>1805) { //3.61V - 3.71V (warning: to low level)
+    batperc = 10;
+  } else if (batvolt>1635) { //3.27V - 3.61V (critical - don't go here!)
+    batperc = 0;
+  } else { //Even lower are impossible values, so probably no battery attached or analog read error?
+    Debug("(No battery?)");
   }
+  Debug(batperc); Debugln("%");
+  return batperc;
 }
 
 void processCalendarEntries(boolean doUrgent) {
@@ -105,7 +125,7 @@ void processCalendarEntries(boolean doUrgent) {
     if ((indexFamily<calFamily.getEntryCount()) && ((dayIndex(entryFamily.month,entryFamily.mday)<dayIndex(entryBirthdays.month,entryBirthdays.mday)) || (indexBirthdays>=calBirthdays.getEntryCount()))) {
       //Show family entry
       if (doUrgent) {
-        canvas.displayCalendarEntryUrgent(entryFamily.mday, entryFamily.eventType, entryFamily.urgent);
+        canvas.displayCalendarEntryUrgent(entryFamily.mday, entryFamily.eventType, entryFamily.fullDayEvent, entryFamily.urgent);
       } else {
         canvas.displayCalendarEntry(entryFamily.mday, entryFamily.wday, entryFamily.startHour, entryFamily.startMinute, entryFamily.endHour, entryFamily.endMinute, entryFamily.eventType, entryFamily.fullDayEvent, !entryFamily.urgent, String(entryFamily.summary));
       }
@@ -122,7 +142,7 @@ void processCalendarEntries(boolean doUrgent) {
           summary = summary + " (" + String(1900 + CurrentTimeInfo.tm_year - entryBirthdays.eventYear) + ")";
         }
         if (doUrgent) {
-          canvas.displayCalendarEntryUrgent(entryBirthdays.mday, entryBirthdays.eventType,entryBirthdays.urgent);
+          canvas.displayCalendarEntryUrgent(entryBirthdays.mday, entryBirthdays.eventType, entryBirthdays.fullDayEvent, entryBirthdays.urgent);
         } else {
           canvas.displayCalendarEntry(entryBirthdays.mday, entryBirthdays.wday, entryBirthdays.startHour, entryBirthdays.startMinute, entryBirthdays.endHour, entryBirthdays.endMinute, entryBirthdays.eventType, entryBirthdays.fullDayEvent, !entryBirthdays.urgent, summary);
         }
