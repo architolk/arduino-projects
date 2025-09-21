@@ -9,6 +9,7 @@
 #include "src/APIClients/secrets.h"
 #include "src/APIClients/HACalendar.h"
 #include "src/APIClients/Weerlive.h"
+#include "src/APIClients/Magister.h"
 
 //See Debug.h for enabling debug mode
 
@@ -16,7 +17,7 @@
 #define KEEP_DISPLAY_STATE
 
 //Comment if you don't want the ESP32 to go into deep sleep
-//#define ENABLE_DEEP_SLEEP
+#define ENABLE_DEEP_SLEEP
 
 //Comment if you don't want the displays to be updated
 #define UPDATE_SCREENS
@@ -44,6 +45,9 @@ HACalendar calFamily;
 HACalendar calBirthdays;
 //Interface to Weerlive API
 Weerlive weather;
+//Interface to Magister
+Magister magisterJ;
+Magister magisterR;
 
 void initialize() {
   pinMode(LED_PIN_ESP32, OUTPUT); //Set LED pin to output
@@ -111,6 +115,15 @@ void processCalendarEntries(boolean doUrgent) {
 
   canvas.setCursor(308,6); //Beginpoint of the calendar. X pos is ignored.
   canvas.displayCalendarResetDayCursor();
+
+  //School stuff always at top, should do different but needs refactoring
+  if (magisterJ.getIndex() < magisterR.getIndex()) {
+    if (magisterJ.hasValue) {canvas.displayCalendarEntry(magisterJ.mday, magisterJ.wday, magisterJ.startHour, magisterJ.startMinute, magisterJ.endHour, magisterJ.endMinute, magisterJ.eventType, false, true, magisterJ.getSummary());}
+    if (magisterR.hasValue) {canvas.displayCalendarEntry(magisterR.mday, magisterR.wday, magisterR.startHour, magisterR.startMinute, magisterR.endHour, magisterR.endMinute, magisterR.eventType, false, true, magisterR.getSummary());}
+  } else {
+    if (magisterR.hasValue) {canvas.displayCalendarEntry(magisterR.mday, magisterR.wday, magisterR.startHour, magisterR.startMinute, magisterR.endHour, magisterR.endMinute, magisterR.eventType, false, true, magisterR.getSummary());}
+    if (magisterJ.hasValue) {canvas.displayCalendarEntry(magisterJ.mday, magisterJ.wday, magisterJ.startHour, magisterJ.startMinute, magisterJ.endHour, magisterJ.endMinute, magisterJ.eventType, false, true, magisterJ.getSummary());}
+  }
 
   //Get first entries, if available
   if (calBirthdays.getEntryCount()>0) {
@@ -377,10 +390,15 @@ boolean setupWifi() {
   }
   if (WiFi.status()==WL_CONNECTED) {
     Debugln("Connected to wifi");
+    //Weather API calls
     weather.retrieveWeatherData();
     setupTime();
+    //Calendar (home assistant) API calls
     calFamily.retrieveCalendarData(&CurrentTimeInfo,"familie",7); //Max one week for family events (top screen)
     calBirthdays.retrieveCalendarData(&CurrentTimeInfo,"verjaardagen",14); //Max two weeks for birthday events (top & bottom screens)
+    //Magister API calls
+    magisterJ.retrieveMagisterData(&CurrentTimeInfo,0,'J');
+    magisterR.retrieveMagisterData(&CurrentTimeInfo,1,'R');
     return true;
   } else {
     return false;
