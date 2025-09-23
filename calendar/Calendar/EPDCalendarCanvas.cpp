@@ -287,5 +287,10 @@ void EPDCalendarCanvas::displayStatus(struct tm * timeinfo, int batLevel) {
   String secStr = String(timeinfo->tm_sec);
   if (secStr.length()<2) {secStr = "0"+secStr;}
   setFont(&FreeSansBold8pt7b);
-  drawText(790,476,String(batLevel)+"% Battery. Last updated: "+String(timeinfo->tm_hour)+":"+minStr+":"+secStr,2);
+  if (batLevel>0) {
+    drawText(790,476,String(batLevel)+"% Battery. Last updated: "+String(timeinfo->tm_hour)+":"+minStr+":"+secStr,2);
+  } else {
+    //If battery level is negative, the value is actually half the measured voltage in milivolt
+    drawText(790,476,String(-2*batLevel)+"mV Battery. Last updated: "+String(timeinfo->tm_hour)+":"+minStr+":"+secStr,2);
+  }
 }

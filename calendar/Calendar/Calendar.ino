@@ -100,6 +100,7 @@ int readBatteryLevel() {
   } else if (batvolt>1635) { //3.27V - 3.61V (critical - don't go here!)
     batperc = 0;
   } else { //Even lower are impossible values, so probably no battery attached or analog read error?
+    batperc = -batvolt; //Negative values to indicate that this isn't a percentage
     Debug("(No battery?)");
   }
   Debug(batperc); Debugln("%");
@@ -483,5 +484,10 @@ void setup() {
 }
 
 void loop() {
-  //Won't get here
+  //Won't get here, except when deep sleep is disabled
+  //Make sure we indicate that we're not sleeping
+  digitalWrite(LED_PIN_ESP32, HIGH);  // turn the LED on (HIGH is the voltage level)
+  delay(500);                      // wait for a second
+  digitalWrite(LED_PIN_ESP32, LOW);   // turn the LED off by making the voltage LOW
+  delay(1000);                      // wait for a second
 }
