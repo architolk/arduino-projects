@@ -489,5 +489,5 @@ void loop() {
   digitalWrite(LED_PIN_ESP32, HIGH);  // turn the LED on (HIGH is the voltage level)
   delay(500);                      // wait for a second
   digitalWrite(LED_PIN_ESP32, LOW);   // turn the LED off by making the voltage LOW
-  delay(1000);                      // wait for a second
+  delay(2000);                      // wait for a second
 }

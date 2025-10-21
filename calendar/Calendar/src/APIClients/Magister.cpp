@@ -94,13 +94,15 @@ void Magister::retrieveMagisterData(struct tm * timeinfo, int _account, char _ev
             Debug(" > ");
             Debugln(entry->summary().c_str());
             */
-            int entryStartMinutes = (offset + entry->start().datestamp().hour)*60 + entry->start().datestamp().minute;
-            int entryEndMinutes = (offset + entry->end().datestamp().hour)*60 + entry->end().datestamp().minute;
-            if (entryStartMinutes < startMinutes) {
-              startMinutes = entryStartMinutes;
-            }
-            if (entryEndMinutes > endMinutes) {
-              endMinutes = entryEndMinutes;
+            if (entry->start().datestamp().hour!=0) { //All day events have hour==0, so skip those
+              int entryStartMinutes = (offset + entry->start().datestamp().hour)*60 + entry->start().datestamp().minute;
+              int entryEndMinutes = (offset + entry->end().datestamp().hour)*60 + entry->end().datestamp().minute;
+              if (entryStartMinutes < startMinutes) {
+                startMinutes = entryStartMinutes;
+              }
+              if (entryEndMinutes > endMinutes) {
+                endMinutes = entryEndMinutes;
+              }
             }
         }
         if ((startMinutes!=1440) && (endMinutes!=0)) {
