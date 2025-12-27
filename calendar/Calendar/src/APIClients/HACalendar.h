@@ -7,6 +7,7 @@
 struct entry_t {
   const char* summary;
   const char* description;
+  uint16_t year;
   uint8_t month;
   uint8_t mday;
   uint8_t wday;

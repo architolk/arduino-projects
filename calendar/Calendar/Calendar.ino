@@ -152,8 +152,8 @@ void processCalendarEntries(boolean doUrgent) {
       if (indexBirthdays<calBirthdays.getEntryCount()) {
         //Show birthday entry
         String summary = String(entryBirthdays.summary);
-        if ((entryBirthdays.eventYear>1900) && (entryBirthdays.eventYear<=(1900+CurrentTimeInfo.tm_year))) {
-          summary = summary + " (" + String(1900 + CurrentTimeInfo.tm_year - entryBirthdays.eventYear) + ")";
+        if ((entryBirthdays.eventYear>1900) && (entryBirthdays.eventYear<=entryBirthdays.year)) {
+          summary = summary + " (" + String(entryBirthdays.year - entryBirthdays.eventYear) + ")";
         }
         if (doUrgent) {
           canvas.displayCalendarEntryUrgent(entryBirthdays.mday, entryBirthdays.eventType, entryBirthdays.fullDayEvent, entryBirthdays.urgent);

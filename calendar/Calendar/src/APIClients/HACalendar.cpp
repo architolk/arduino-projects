@@ -103,6 +103,7 @@ entry_t HACalendar::getEntry(int index) {
         timeinfo.tm_min=0;
         timeinfo.tm_sec=0;
         mktime(&timeinfo); //Especially for day-of-week
+        entry.year = 1900 + timeinfo.tm_year;
         entry.month = timeinfo.tm_mon;
         entry.mday = timeinfo.tm_mday;
         entry.wday = timeinfo.tm_wday;
@@ -112,6 +113,7 @@ entry_t HACalendar::getEntry(int index) {
       mktime(&timeinfo); //Especially for day-of-week
       entry.startHour = timeinfo.tm_hour;
       entry.startMinute = timeinfo.tm_min;
+      entry.year = 1900 + timeinfo.tm_year;
       entry.month = timeinfo.tm_mon;
       entry.mday = timeinfo.tm_mday;
       entry.wday = timeinfo.tm_wday;
