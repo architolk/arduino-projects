@@ -36,6 +36,8 @@ char* Magister::getSummary() {
 }
 
 void Magister::retrieveMagisterData(struct tm * timeinfo, int _account, char _eventType) {
+  year = 1900 + timeinfo->tm_year;
+  month = timeinfo->tm_mon;
   mday = timeinfo->tm_mday;
   wday = timeinfo->tm_wday;
   account = _account;

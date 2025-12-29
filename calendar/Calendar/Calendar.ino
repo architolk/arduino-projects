@@ -4,12 +4,14 @@
 #include "src/e-Paper/DEV_Tools.h"
 #include "src/e-Paper/EInkDisplay.h"
 #include "EPDCalendarCanvas.h"
+#include "CalEntries.h"
 #include "Config.h"
 #include <WiFi.h>
 #include "src/APIClients/secrets.h"
 #include "src/APIClients/HACalendar.h"
 #include "src/APIClients/Weerlive.h"
 #include "src/APIClients/Magister.h"
+#include "src/APIClients/Rova.h"
 
 //See Debug.h for enabling debug mode
 
@@ -48,6 +50,11 @@ Weerlive weather;
 //Interface to Magister
 Magister magisterJ;
 Magister magisterR;
+//Interface to Rova
+Rova rovaEvents;
+
+//Calendar data representation
+CalEntries calEntries;
 
 void initialize() {
   pinMode(LED_PIN_ESP32, OUTPUT); //Set LED pin to output
@@ -107,68 +114,72 @@ int readBatteryLevel() {
   return batperc;
 }
 
+void populateCalendar() {
+  //Magister
+  if (magisterJ.hasValue) {
+    CalEntry* entry = new CalEntry(magisterJ.year, magisterJ.month, magisterJ.mday, magisterJ.wday, magisterJ.startHour, magisterJ.startMinute, magisterJ.endHour, magisterJ.endMinute, magisterJ.eventType, false, true, magisterJ.getSummary());
+    calEntries.add(entry);
+  }
+  if (magisterR.hasValue) {
+    CalEntry* entry = new CalEntry(magisterR.year, magisterR.month, magisterR.mday, magisterR.wday, magisterR.startHour, magisterR.startMinute, magisterR.endHour, magisterR.endMinute, magisterR.eventType, false, true, magisterR.getSummary());
+    calEntries.add(entry);
+  }
+  //Family HACalendar
+  for (int i=0; i<calFamily.getEntryCount(); i++) {
+    entry_t entryFamily = calFamily.getEntry(i);
+    CalEntry* entry = new CalEntry(entryFamily.year, entryFamily.month, entryFamily.mday, entryFamily.wday, entryFamily.startHour, entryFamily.startMinute, entryFamily.endHour, entryFamily.endMinute, entryFamily.eventType, entryFamily.fullDayEvent, entryFamily.urgent, entryFamily.summary);
+    calEntries.add(entry);
+  }
+  //Birthday HACalendar
+  for (int i=0; i<calBirthdays.getEntryCount(); i++) {
+    entry_t entryBirthdays = calBirthdays.getEntry(i);
+    String summary = String(entryBirthdays.summary);
+    if ((entryBirthdays.eventYear>1900) && (entryBirthdays.eventYear<=entryBirthdays.year)) {
+      summary = summary + " (" + String(entryBirthdays.year - entryBirthdays.eventYear) + ")";
+    }
+    char* buf = new char[strlen(summary.c_str())+1];
+    strcpy(buf,summary.c_str());
+    CalEntry* entry = new CalEntry(entryBirthdays.year, entryBirthdays.month, entryBirthdays.mday, entryBirthdays.wday, entryBirthdays.startHour, entryBirthdays.startMinute, entryBirthdays.endHour, entryBirthdays.endMinute, entryBirthdays.eventType, entryBirthdays.fullDayEvent, entryBirthdays.urgent, buf);
+    calEntries.add(entry);
+  }
+  //Rova events
+  for (int i=0; i<rovaEvents.getEntryCount(); i++) {
+    wentry_t rovaEvent = rovaEvents.getEntry(i);
+    CalEntry* entry = new CalEntry(rovaEvent.year, rovaEvent.month, rovaEvent.mday, rovaEvent.wday, 0, 0, 0, 0, 'E', true, false, rovaEvent.summary);
+    if (entry->pastEvent(&CurrentTimeInfo)) {
+      delete entry;
+    } else {
+      calEntries.add(entry);
+    }
+  }
+
+  calEntries.sort();
+
+  //Debug purposes only
+  /*
+  Debugln("ENTRIES:");
+  CalEntry* entry;
+  bool notFinished = calEntries.first(entry);
+  while (notFinished) {
+    Debugln(entry->description);
+    notFinished = calEntries.next(entry);
+  }
+  */
+}
+
 void processCalendarEntries(boolean doUrgent) {
 
-  int indexFamily = 0;
-  int indexBirthdays = 0;
-  entry_t entryFamily;
-  entry_t entryBirthdays;
+  CalEntry* entry;
 
   canvas.setCursor(308,6); //Beginpoint of the calendar. X pos is ignored.
   canvas.displayCalendarResetDayCursor();
 
-  //School stuff always at top, should do different but needs refactoring
-  if (magisterJ.getIndex() < magisterR.getIndex()) {
-    if (magisterJ.hasValue) {canvas.displayCalendarEntry(magisterJ.mday, magisterJ.wday, magisterJ.startHour, magisterJ.startMinute, magisterJ.endHour, magisterJ.endMinute, magisterJ.eventType, false, true, magisterJ.getSummary());}
-    if (magisterR.hasValue) {canvas.displayCalendarEntry(magisterR.mday, magisterR.wday, magisterR.startHour, magisterR.startMinute, magisterR.endHour, magisterR.endMinute, magisterR.eventType, false, true, magisterR.getSummary());}
-  } else {
-    if (magisterR.hasValue) {canvas.displayCalendarEntry(magisterR.mday, magisterR.wday, magisterR.startHour, magisterR.startMinute, magisterR.endHour, magisterR.endMinute, magisterR.eventType, false, true, magisterR.getSummary());}
-    if (magisterJ.hasValue) {canvas.displayCalendarEntry(magisterJ.mday, magisterJ.wday, magisterJ.startHour, magisterJ.startMinute, magisterJ.endHour, magisterJ.endMinute, magisterJ.eventType, false, true, magisterJ.getSummary());}
-  }
-
-  //Get first entries, if available
-  if (calBirthdays.getEntryCount()>0) {
-    entryBirthdays = calBirthdays.getEntry(0);
-  }
-  if (calFamily.getEntryCount()>0) {
-    entryFamily = calFamily.getEntry(0);
-  }
-  boolean notFinished = ((calBirthdays.getEntryCount()>0) || (calFamily.getEntryCount()>0));
+  boolean notFinished = calEntries.first(entry);
   while (notFinished) {
-    //If family is earlier, show family and go to next event for family
-    if ((indexFamily<calFamily.getEntryCount()) && ((dayIndex(entryFamily.month,entryFamily.mday)<dayIndex(entryBirthdays.month,entryBirthdays.mday)) || (indexBirthdays>=calBirthdays.getEntryCount()))) {
-      //Show family entry
-      if (doUrgent) {
-        canvas.displayCalendarEntryUrgent(entryFamily.mday, entryFamily.eventType, entryFamily.fullDayEvent, entryFamily.urgent);
-      } else {
-        canvas.displayCalendarEntry(entryFamily.mday, entryFamily.wday, entryFamily.startHour, entryFamily.startMinute, entryFamily.endHour, entryFamily.endMinute, entryFamily.eventType, entryFamily.fullDayEvent, !entryFamily.urgent, String(entryFamily.summary));
-      }
-      indexFamily++;
-      if (indexFamily<calFamily.getEntryCount()) {
-        entryFamily = calFamily.getEntry(indexFamily);
-      }
-    } else {
-      //If family is not earlier, show birthday and go to next event for birthdays
-      if (indexBirthdays<calBirthdays.getEntryCount()) {
-        //Show birthday entry
-        String summary = String(entryBirthdays.summary);
-        if ((entryBirthdays.eventYear>1900) && (entryBirthdays.eventYear<=entryBirthdays.year)) {
-          summary = summary + " (" + String(entryBirthdays.year - entryBirthdays.eventYear) + ")";
-        }
-        if (doUrgent) {
-          canvas.displayCalendarEntryUrgent(entryBirthdays.mday, entryBirthdays.eventType, entryBirthdays.fullDayEvent, entryBirthdays.urgent);
-        } else {
-          canvas.displayCalendarEntry(entryBirthdays.mday, entryBirthdays.wday, entryBirthdays.startHour, entryBirthdays.startMinute, entryBirthdays.endHour, entryBirthdays.endMinute, entryBirthdays.eventType, entryBirthdays.fullDayEvent, !entryBirthdays.urgent, summary);
-        }
-        indexBirthdays++;
-        if (indexBirthdays<calBirthdays.getEntryCount()) {
-          entryBirthdays = calBirthdays.getEntry(indexBirthdays);
-        }
+    canvas.displayCalendarEntryNEW(entry,doUrgent);
 
-      }
-    }
     //Stop if no more entries, or no more space available
-    notFinished = (((indexFamily<calFamily.getEntryCount()) || (indexBirthdays<calBirthdays.getEntryCount())) && (canvas.calendarSpaceAvailable()));
+    notFinished = ((calEntries.next(entry)) && (canvas.calendarSpaceAvailable()));
   }
 }
 
@@ -400,6 +411,8 @@ boolean setupWifi() {
     //Magister API calls
     magisterJ.retrieveMagisterData(&CurrentTimeInfo,0,'J');
     magisterR.retrieveMagisterData(&CurrentTimeInfo,1,'R');
+    //Rova API calls
+    rovaEvents.retrieveRovaData();
     return true;
   } else {
     return false;
@@ -466,6 +479,7 @@ void setup() {
   } else {
     initialize();
     if (setupWifi()) {
+      populateCalendar();
 #ifdef UPDATE_SCREENS
       updateTopDisplay();
       updateBottomDisplay();

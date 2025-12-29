@@ -215,6 +215,14 @@ void EPDCalendarCanvas::displayCalendarResetDayCursor() {
   dayCursor = 0;
 }
 
+void EPDCalendarCanvas::displayCalendarEntryNEW(CalEntry* entry, boolean displayType) {
+  if (displayType) {
+    displayCalendarEntryUrgent(entry->mday, entry->eventType, entry->fullDayEvent, entry->urgent);
+  } else {
+    displayCalendarEntry(entry->mday, entry->wday, entry->startHour, entry->startMinute, entry->endHour, entry->endMinute, entry->eventType, entry->fullDayEvent, !entry->urgent, entry->description);
+  }
+}
+
 void EPDCalendarCanvas::displayCalendarEntryUrgent(int mday, char type, boolean fullDay, boolean displayType) {
   int16_t ypos = getCursorY(); //16 (-10) standaard
   if (mday!=dayCursor) {

@@ -6,6 +6,8 @@
 
 #include <time.h>
 
+#include "CalEntries.h"
+
 #include "src/Graphics/EPDCanvas.h"
 
 #include "src/Fonts/FreeSansBold8pt7b.h"
@@ -36,6 +38,7 @@ class EPDCalendarCanvas : public EPDCanvas {
     void displayCalendarWeather(struct tm * timeinfo, int index, char image, int mintemp, int maxtemp, int rainperc);
     boolean calendarSpaceAvailable();
     void displayCalendarResetDayCursor();
+    void displayCalendarEntryNEW(CalEntry* entry, boolean displayType);
     void displayCalendarEntryUrgent(int mday, char type, boolean fullDay, boolean displayType);
     void displayCalendarEntry(int mday, int wday, int hs, int ms, int he, int me, char type, boolean fullDay, boolean displayType, const String description);
     void displayMonthCalendarEntry(struct tm * timeinfo, int index, int line, const String description);

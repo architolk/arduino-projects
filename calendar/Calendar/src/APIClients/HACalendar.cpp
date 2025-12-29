@@ -107,6 +107,10 @@ entry_t HACalendar::getEntry(int index) {
         entry.month = timeinfo.tm_mon;
         entry.mday = timeinfo.tm_mday;
         entry.wday = timeinfo.tm_wday;
+        entry.startHour = 0;
+        entry.startMinute = 0;
+        entry.endHour = 0;
+        entry.endMinute = 0;
         entry.fullDayEvent = true;
     } else {
       strptime(startDateTime,"%Y-%m-%dT%H:%M:%S",&timeinfo);

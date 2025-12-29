@@ -9,12 +9,14 @@ class Magister {
     int getIndex();
     char* getSummary();
 
-    int mday = 0;
-    int wday = 0;
-    int startHour = 0;
-    int startMinute = 0;
-    int endHour = 0;
-    int endMinute = 0;
+    uint16_t year = 1900;
+    uint8_t month = 0;
+    uint8_t mday = 0;
+    uint8_t wday = 0;
+    uint8_t startHour = 0;
+    uint8_t startMinute = 0;
+    uint8_t endHour = 0;
+    uint8_t endMinute = 0;
     bool hasValue = false;
     char eventType = 'E';
 
