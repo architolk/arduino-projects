@@ -117,17 +117,22 @@ int readBatteryLevel() {
 void populateCalendar() {
   //Magister
   if (magisterJ.hasValue) {
-    CalEntry* entry = new CalEntry(magisterJ.year, magisterJ.month, magisterJ.mday, magisterJ.wday, magisterJ.startHour, magisterJ.startMinute, magisterJ.endHour, magisterJ.endMinute, magisterJ.eventType, false, true, magisterJ.getSummary());
+    CalEntry* entry = new CalEntry(magisterJ.year, magisterJ.month, magisterJ.mday, magisterJ.wday, magisterJ.startHour, magisterJ.startMinute, magisterJ.endHour, magisterJ.endMinute, magisterJ.eventType, false, false, magisterJ.getSummary());
     calEntries.add(entry);
   }
   if (magisterR.hasValue) {
-    CalEntry* entry = new CalEntry(magisterR.year, magisterR.month, magisterR.mday, magisterR.wday, magisterR.startHour, magisterR.startMinute, magisterR.endHour, magisterR.endMinute, magisterR.eventType, false, true, magisterR.getSummary());
+    CalEntry* entry = new CalEntry(magisterR.year, magisterR.month, magisterR.mday, magisterR.wday, magisterR.startHour, magisterR.startMinute, magisterR.endHour, magisterR.endMinute, magisterR.eventType, false, false, magisterR.getSummary());
     calEntries.add(entry);
   }
   //Family HACalendar
   for (int i=0; i<calFamily.getEntryCount(); i++) {
     entry_t entryFamily = calFamily.getEntry(i);
     CalEntry* entry = new CalEntry(entryFamily.year, entryFamily.month, entryFamily.mday, entryFamily.wday, entryFamily.startHour, entryFamily.startMinute, entryFamily.endHour, entryFamily.endMinute, entryFamily.eventType, entryFamily.fullDayEvent, entryFamily.urgent, entryFamily.summary);
+    if (entry->pastEvent(&CurrentTimeInfo)) {
+      //Recurring entry that has started in the past
+      entry->truncateToCurrent(&CurrentTimeInfo);
+      //This is not totally correct - as we would need multiple calendar entries per day, between day of start and day of finish
+    }
     calEntries.add(entry);
   }
   //Birthday HACalendar
@@ -154,17 +159,6 @@ void populateCalendar() {
   }
 
   calEntries.sort();
-
-  //Debug purposes only
-  /*
-  Debugln("ENTRIES:");
-  CalEntry* entry;
-  bool notFinished = calEntries.first(entry);
-  while (notFinished) {
-    Debugln(entry->description);
-    notFinished = calEntries.next(entry);
-  }
-  */
 }
 
 void processCalendarEntries(boolean doUrgent) {

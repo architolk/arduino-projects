@@ -36,12 +36,21 @@ class CalEntry {
     }
 
     bool pastEvent(struct tm * timeinfo) {
-      if (this->year < timeinfo->tm_year) return true;
-      if (this->year > timeinfo->tm_year) return false;
+      if (this->year < (1900 + timeinfo->tm_year)) return true;
+      if (this->year > (1900 + timeinfo->tm_year)) return false;
       if (this->month < timeinfo->tm_mon) return true;
       if (this->month > timeinfo->tm_mon) return false;
       if (this->mday < timeinfo->tm_mday) return true;
       return false;
+    }
+
+    void truncateToCurrent(struct tm * timeinfo) {
+      this->year = (1900 + timeinfo->tm_year);
+      this->month = timeinfo->tm_mon;
+      this->mday = timeinfo->tm_mday;
+      this->wday = timeinfo->tm_wday;
+      this->startHour = 7;
+      this->startMinute = 0;
     }
 };
 

@@ -77,6 +77,12 @@ void EPDCanvas::drawTimeRect(int16_t x, int16_t y, uint16_t hs, uint16_t ms, uin
   uint16_t width = TIMERECT_ENDPIXEL - x;
   drawRect(x,y,width,TIMERECT_HEIGHT,0);
   uint16_t xstart = x+(hs*60+ms-TIMERECT_START)*width/(TIMERECT_END-TIMERECT_START);
+  if (xstart < x) {
+    xstart = x; //disregard times befor 7:00 o'clock (rectangle would start before x pos)
+  }
   uint16_t xend = x+(he*60+me-TIMERECT_START)*width/(TIMERECT_END-TIMERECT_START);
+  if (xend > (x+width)) {
+    xend = x+width; //disregard times after 23:00 o'clock (rectangle would end after width)
+  }
   fillRect(xstart,y,xend-xstart,TIMERECT_HEIGHT,0);
 }
