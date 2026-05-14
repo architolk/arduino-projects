@@ -1,5 +1,5 @@
-#ifndef _CONFIG_PAGE_H
-#define _CONFIG_PAGE_H
+#ifndef _RADIO_PAGE_H
+#define _RADIO_PAGE_H
 
 const char CONFIG_HTML[] PROGMEM = R"=====(
 <!doctype html>
@@ -7,7 +7,7 @@ const char CONFIG_HTML[] PROGMEM = R"=====(
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Radio - WiFi instellen</title>
+  <title>Radio - select station</title>
   <style>
     :root {
       --bg: #0b1220;
@@ -128,38 +128,33 @@ const char CONFIG_HTML[] PROGMEM = R"=====(
 
 <body>
   <main class="card">
-    <h1>WiFi configuratie</h1>
-    <p class="hint">Vul SSID en wachtwoord in en druk op <b>Instellen</b>. Bij succes wordt dit <b>Geregistreerd</b>.</p>
+    <h1>Radio station</h1>
+    <p class="hint">Selecteer het radiostation en druk op <b>Selecteren</b>.</p>
 
     <form id="wifiForm" autocomplete="off">
       <div class="row">
         <div>
-          <label for="ssid">SSID</label>
-          <input id="ssid" name="ssid" inputmode="text" placeholder="Bijv. MijnNetwerk" list="ssidlist" required />
-          <datalist id="ssidlist">
+          <label for="station">Station</label>
+          <input id="station" name="station" inputmode="text" placeholder="Bijv. MijnNetwerk" list="stationlist" required />
+          <datalist id="stationlist">
             <!--OPTIONS-->
           </datalist>
         </div>
 
-        <div>
-          <label for="password">Password</label>
-          <input id="password" name="password" type="password" placeholder="••••••••" required />
-        </div>
       </div>
 
       <div class="actions">
-        <button id="submitBtn" type="submit">Instellen</button>
+        <button id="submitBtn" type="submit">Selecteren</button>
         <div id="status" class="status" aria-live="polite"></div>
       </div>
     </form>
   </main>
 
   <script>
-    const API_URL = "/api/wificonfig";
+    const API_URL = "/api/setstation";
 
     const form = document.getElementById("wifiForm");
-    const ssidEl = document.getElementById("ssid");
-    const passEl = document.getElementById("password");
+    const stationEl = document.getElementById("station");
     const btn = document.getElementById("submitBtn");
     const statusEl = document.getElementById("status");
 
@@ -189,7 +184,7 @@ const char CONFIG_HTML[] PROGMEM = R"=====(
         return;
       }
       // ready
-      btn.textContent = "Instellen";
+      btn.textContent = "Selecteren";
       btn.disabled = false;
       busy = false;
       registered = false;
@@ -203,17 +198,15 @@ const char CONFIG_HTML[] PROGMEM = R"=====(
       }
     }
     ssidEl.addEventListener("input", onInputChanged);
-    passEl.addEventListener("input", onInputChanged);
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       if (busy) return;
 
-      const ssid = ssidEl.value.trim();
-      const password = passEl.value;
+      const station = stationEl.value.trim();
 
-      if (!ssid || !password) {
-        setStatus("Vul SSID en wachtwoord in.", "err");
+      if (!station) {
+        setStatus("Vul een geldig station in.", "err");
         return;
       }
 

@@ -6,15 +6,30 @@
 #include <Audio.h>
 #include <ArduinoJson.h>
 #include "config-page.h"
+#include "radiostations.h"
 
 // Digital I/O used
+/*
+//This works (but uses the ADC_1)
 #define I2S_DOUT      4
 #define I2S_BCLK      5
 #define I2S_LRC       6
-
+//This works, but dropouts...
+#define I2S_DOUT      15
+#define I2S_BCLK      16
+#define I2S_LRC       17
+*/
+//This also works (but strange behaviour - use this probably...)
+#define I2S_DOUT      21
+#define I2S_BCLK      47
+#define I2S_LRC       48
 
 #include "secrets.h"
 const char *ssidAP = SECRET_SSID_AP;
+
+//Needed for checking sensors every 0.5 second
+unsigned long previousMillis = 0;
+#define SENSOR_INTERVAL 500
 
 //Current status of the network (IP network)
 boolean networkAvailable = false;
@@ -151,9 +166,22 @@ void setupWiFi() {
 }
 
 void setupAudio() {
+  Serial.print("DOUT: ");
+  Serial.print(I2S_DOUT);
+  Serial.print(" BCLK: ");
+  Serial.print(I2S_BCLK);
+  Serial.print(" LRC: ");
+  Serial.println(I2S_LRC);
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   audio.setVolume(15); // default 0...21
-  audio.connecttohost("http://stream.antennethueringen.de/live/aac-64/stream.antennethueringen.de/");
+
+  Station* station;
+  if (getStation(900,&station)) {
+    audio.connecttohost(station->url);
+  } else {
+    //Connect to this radiostation by default
+    audio.connecttohost("http://stream.antennethueringen.de/live/aac-64/stream.antennethueringen.de/");
+  }
 }
 
 void setupWebServer() {
@@ -168,6 +196,7 @@ void setup() {
   //Try a connection to the WiFI
   setupWiFi();
   if (networkAvailable) {
+    loadStations();
     setupAudio();
     setupWebServer();
   } else {
@@ -191,6 +220,17 @@ void redirectRoot() {
   server.send(200,"text/html","<html><body><script>location.href='/'</script></body></html>");
 }
 
+void checkTouch() {
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= SENSOR_INTERVAL) {
+    previousMillis = currentMillis;
+    Serial.print("Touch: GPIO1: ");
+    Serial.print(touchRead(1));
+    Serial.print(" GPIO14: ");
+    Serial.println(touchRead(14));
+  }
+}
+
 void loop(){
   if (networkAvailable) {
     audio.loop();
@@ -200,11 +240,13 @@ void loop(){
       shouldConnectToWiFi = false;
       setupWiFi();
       if (networkAvailable) {
+        loadStations();
         setupAudio();
         setupWebServer();
       }
     }
   }
+  //checkTouch();
   server.handleClient();
   vTaskDelay(1);
 }
