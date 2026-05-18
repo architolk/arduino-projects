@@ -1,7 +1,10 @@
 #ifndef _RADIO_PAGE_H
 #define _RADIO_PAGE_H
 
-const char CONFIG_HTML[] PROGMEM = R"=====(
+// Veranderen met:
+// https://css-tricks.com/how-to-make-a-scroll-to-select-form-control/
+
+const char RADIO_HTML[] PROGMEM = R"=====(
 <!doctype html>
 <html lang="nl">
 <head>
