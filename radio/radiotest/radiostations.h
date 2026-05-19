@@ -3,6 +3,8 @@
 
 #include <LittleFS.h>
 
+#include "debug.h"
+
 //Default radiostations. Will be used when no radiostations file can be found in LittleFS memory of the ESP32
 
 //Any number of radiostations is possible (might max out in the global variables)
@@ -59,12 +61,12 @@ bool addStation(int freq, const char* url) {
   safeCopy(stations[pos].url,sizeof(stations[pos].url),url);
   stationCount++;
 
-  Serial.print("Station #");
-  Serial.print(pos);
-  Serial.print(": ");
-  Serial.print(stations[pos].freq);
-  Serial.print(" ");
-  Serial.println(stations[pos].url);
+  Debug("Station #");
+  Debug(pos);
+  Debug(": ");
+  Debug(stations[pos].freq);
+  Debug(" ");
+  Debugln(stations[pos].url);
   return true;
 }
 
@@ -103,7 +105,7 @@ void readStations() {
   char buffer[MAX_URL_LENGTH];
   File file = LittleFS.open("/stations.txt",FILE_READ);
   if (!file) {
-    Serial.println("Opening file failed");
+    Debugln("Opening file failed");
     return;
   }
 
@@ -121,7 +123,7 @@ void writeStations() {
   char buffer[MAX_URL_LENGTH];
   File file = LittleFS.open("/stations.txt",FILE_WRITE);
   if (!file) {
-    Serial.println("Writing file failed");
+    Debugln("Writing file failed");
     return;
   }
   for (int i=0; i<stationCount; i++) {

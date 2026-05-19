@@ -5,32 +5,26 @@
 #include <Preferences.h>
 #include <Audio.h>
 #include <ArduinoJson.h>
+
+#include "debug.h"
 #include "config-page.h"
+#include "events-page.h"
 #include "radiostations.h"
 
 // Digital I/O used
-/*
-//This works (but uses the ADC_1)
-#define I2S_DOUT      4
-#define I2S_BCLK      5
-#define I2S_LRC       6
-//This works, but dropouts...
-#define I2S_DOUT      15
-#define I2S_BCLK      16
-#define I2S_LRC       17
-*/
-//This also works (but strange behaviour - use this probably...)
 #define I2S_DOUT      21
 #define I2S_BCLK      47
 #define I2S_LRC       48
 
 #include "secrets.h"
 const char *ssidAP = SECRET_SSID_AP;
+#define MAX_CONNECT_TRIES 1
 
 //Needed for checking sensors every 0.5 second
 unsigned long previousMillis = 0;
 #define SENSOR_INTERVAL 500
 #define SENSOR_STARTUP 5000
+#define TOUCH_SENSITIVITY 80000
 
 //Current status of the network (IP network)
 boolean networkAvailable = false;
@@ -41,6 +35,8 @@ Audio audio;
 
 WebServer server(80);
 DNSServer dnsServer;
+WiFiClient sseClient;
+char sseBuffer[200];
 Preferences prefs;
 
 int currentVolume, newVolume = 0;
@@ -67,6 +63,30 @@ String buildConfigHtml() {
   return html;
 }
 
+void handleEventsPage() {
+  Debugln("Events page");
+  server.send(200,"text/html",EVENTS_HTML);
+}
+
+void handleEventsAPI() {
+  // Keep client connection open
+  sseClient = server.client();
+
+  /*
+  server.sendHeader("Content-Type", "text/event-stream");
+  server.sendHeader("Cache-Control", "no-cache");
+  server.sendHeader("Connection", "keep-alive");
+  server.send(200);
+  */
+  sseClient.println("HTTP/1.1 200 OK");
+  sseClient.println("Content-Type: text/event-stream");
+  sseClient.println("Cache-Control: no-cache");
+  sseClient.println("Connection: keep-alive");
+  sseClient.println();  // end of headers
+
+  Debugln("SSE client connected");
+
+}
 
 void handleWifiConfig() {
   //server.send(200,CONFIG_HTML);
@@ -112,9 +132,25 @@ void handleRoot() {
   server.send(200,"text/html","<h1>Hello from the radio</h1>");
 }
 
+void pushEvent() {
+  //Depends on the global sseBuffer
+  if (sseClient && sseClient.connected()) {
+    if (sseClient.print(sseBuffer)==0) {
+      Debugln("Client disconnected");
+      sseClient.stop();
+    }
+  }
+}
+
 // callbacks
 void my_audio_info(Audio::msg_t m) {
-    Serial.printf("%s: %s\n", m.s, m.msg);
+  Debug(m.s);
+  Debug(": ");
+  Debugln(m.msg);
+
+  //New option for web event streaming
+  sprintf(sseBuffer,"data: %s: %s\n\n", m.s, m.msg);
+  pushEvent();
 }
 
 void initAudio() {
@@ -141,26 +177,26 @@ void initSensors() {
 }
 
 void setupWiFiAccessPoint() {
-  Serial.println("Scanning for networks");
+  Debugln("Scanning for networks");
   WiFi.mode(WIFI_AP_STA);
   int n = WiFi.scanNetworks();
   networkCount = min(n, MAXNETWORKS);
   for (int i=0; i<networkCount; i++) {
     networks[i] = WiFi.SSID(i);
-    Serial.println("- " + networks[i]);
+    Debugln("- " + networks[i]);
   }
   WiFi.mode(WIFI_AP);
   // print the network name (SSID);
-  Serial.print("Creating access point named: ");
-  Serial.println(ssidAP);
+  Debug("Creating access point named: ");
+  Debugln(ssidAP);
 
   // Create open network.
   if (!WiFi.softAP(ssidAP)) {
-    Serial.println("Soft AP creation failed.");
+    Debugln("Soft AP creation failed.");
     while (1);
   }
-  Serial.print("AP IP address: ");
-  Serial.println(WiFi.softAPIP());
+  Debug("AP IP address: ");
+  Debugln(WiFi.softAPIP());
 
   // Wildcard DNS every hostname -> ESP32
   dnsServer.start(53, "*", WiFi.softAPIP());
@@ -175,37 +211,35 @@ void setupWiFi() {
   if (ssid=="") return; // nothing saved yet
 
   // attempt to connect to WiFi network:
-  Serial.print("Attempting to connect to SSID: ");
-  Serial.println(ssid);
+  Debug("Attempting to connect to SSID: ");
+  Debugln(ssid);
   WiFi.begin(ssid.c_str(), pass.c_str());
   int maxTry = 0;
   networkAvailable = false;
-  while ((WiFi.status() != WL_CONNECTED) && (maxTry < 10)) {
-    Serial.print(".");
+  while ((WiFi.status() != WL_CONNECTED) && (maxTry < MAX_CONNECT_TRIES)) {
+    Debug(".");
     maxTry++;
     delay(1500);
   }
-  Serial.println("");
+  Debugln("");
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("Connected");
+    Debugln("Connected");
     networkAvailable = true;
   }
 }
 
 void setupAudio() {
-  Serial.print("DOUT: ");
-  Serial.print(I2S_DOUT);
-  Serial.print(" BCLK: ");
-  Serial.print(I2S_BCLK);
-  Serial.print(" LRC: ");
-  Serial.println(I2S_LRC);
+  Debug("DOUT: ");
+  Debug(I2S_DOUT);
+  Debug(" BCLK: ");
+  Debug(I2S_BCLK);
+  Debug(" LRC: ");
+  Debugln(I2S_LRC);
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   //Linear volume curve (as the potentiometer is already exponential)
-  /*
   audio.setVolumeCurve([](float t) {
     return -60.0f + 60.0f * t;
   });
-  */
   audio.setVolume(15); // default 0...21
 
   Station* station;
@@ -224,15 +258,15 @@ void setupWebServer() {
 
 void setup() {
   initSensors();
-  Serial.begin(115200);
+  DebugBegin(115200);
   delay(1000);
   initAudio();
-  Serial.println("");
-  Serial.println("Starting");
+  loadStations();
+  Debugln("");
+  Debugln("Starting");
   //Try a connection to the WiFI
-  //setupWiFi(); TEMPORARY FOR DEBUGGING
+  setupWiFi();
   if (networkAvailable) {
-    loadStations();
     setupAudio();
     setupWebServer();
   } else {
@@ -240,13 +274,17 @@ void setup() {
     setupWiFiAccessPoint();
     server.on("/", handleWifiConfig);
     server.on("/api/wificonfig", handleWifiConfigAPI);
+    server.on("/events", handleEventsPage);
+    server.on("/api/events",HTTP_GET,handleEventsAPI); //Web alternative for serial debugging
 
     //Captive-portal probes (Android, iOS, Windows)
+    /*
     server.on("/generate_204", [](){ redirectRoot(); });
     server.on("/hotspot-detect.html",[](){ redirectRoot(); });
     server.on("/ncsi.txt", [](){ server.send(200,"text/plain","Microsoft NCSI"); });
     server.on("/connecttest.txt", [](){ server.send(200,"text/plain",""); });
     server.on("/fwlink", [](){ redirectRoot(); });
+    */
     server.onNotFound([](){ handleWifiConfig(); });
   }
   server.begin();
@@ -267,10 +305,11 @@ void checkSensors() {
 
 void checkAudioSettings() {
   int volume = map(analogRead(4),0,4095,0,21);
-  if ((volume==newVolume) && (volume!=currentVolume)) {
+  //if ((volume==newVolume) && (volume!=currentVolume)) {
+  if (volume!=currentVolume) {
     currentVolume = volume;
-    Serial.print("New volume: ");
-    Serial.println(currentVolume);
+    Debug("New volume: ");
+    Debugln(currentVolume);
     if (audioAvailable) {
       audio.setVolume(currentVolume);
     }
@@ -280,8 +319,8 @@ void checkAudioSettings() {
   int treble = map(analogRead(5),0,4095,-12,12);
   if ((treble==newTreble) && (treble!=currentTreble)) {
     currentTreble = treble;
-    Serial.print("New treble: ");
-    Serial.println(currentTreble);
+    Debug("New treble: ");
+    Debugln(currentTreble);
     if (audioAvailable) {
       audio.setTone(currentBass,0,currentTreble);
     }
@@ -291,8 +330,8 @@ void checkAudioSettings() {
   int bass = map(analogRead(6),0,4095,-12,12);
   if ((bass==newBass) && (bass!=currentBass)) {
     currentBass = bass;
-    Serial.print("New bass: ");
-    Serial.println(currentBass);
+    Debug("New bass: ");
+    Debugln(currentBass);
     if (audioAvailable) {
       audio.setTone(currentBass,0,currentTreble);
     }
@@ -303,16 +342,16 @@ void checkAudioSettings() {
 
 void checkTouch() {
   int freq = 0;
-  bool t11 = (touchRead(11)>100000);
-  bool t12 = (touchRead(12)>100000);
-  bool t13 = (touchRead(13)>100000);
-  bool t14 = (touchRead(14)>100000);
+  bool t11 = (touchRead(11)>TOUCH_SENSITIVITY);
+  bool t12 = (touchRead(12)>TOUCH_SENSITIVITY);
+  bool t13 = (touchRead(13)>TOUCH_SENSITIVITY);
+  bool t14 = (touchRead(14)>TOUCH_SENSITIVITY);
   bool t7 = (digitalRead(7)==HIGH);
   if (t11 && (!t12)) {
     currentPreset = 3;
     freq = map(analogRead(9),0,4095,870,1080);
-    Serial.print("Preset 3: ");
-    Serial.println(freq);
+    Debug("Preset 3: ");
+    Debugln(freq);
     //Show LED
     pinMode(42,INPUT);
     pinMode(40,OUTPUT);
@@ -324,8 +363,8 @@ void checkTouch() {
   if (t12 && (!t11)) {
     currentPreset = 2;
     freq = map(analogRead(3),0,4095,870,1080);
-    Serial.print("Preset 2: ");
-    Serial.println(freq);
+    Debug("Preset 2: ");
+    Debugln(freq);
     //Show LED
     pinMode(41,INPUT);
     pinMode(42,OUTPUT);
@@ -336,14 +375,14 @@ void checkTouch() {
   if (t13) {
     currentPreset = 0;
     freq = map(analogRead(1),0,4095,870,1080);
-    Serial.print("Preset MAN: ");
-    Serial.print(freq); //FM tuning
-    Serial.print(" / ");
-    Serial.print(map(analogRead(2),0,4095,87,108)); //FM fine tuning
+    Debug("Preset MAN: ");
+    Debug(freq); //FM tuning
+    Debug(" / ");
+    Debug(map(analogRead(2),0,4095,870,1080)); //FM fine tuning
     if (t7) { //FM Lock
-      Serial.println(" (on)");
+      Debugln(" (on)");
     } else {
-      Serial.println(" (off)");
+      Debugln(" (off)");
     }
     //Show LED
     pinMode(42,INPUT);
@@ -355,8 +394,8 @@ void checkTouch() {
   if (t14) {
     currentPreset = 1;
     freq = map(analogRead(8),0,4095,870,1080);
-    Serial.print("Preset 1: ");
-    Serial.println(freq);
+    Debug("Preset 1: ");
+    Debugln(freq);
     //Show LED
     pinMode(40,INPUT);
     pinMode(42,OUTPUT);
@@ -367,8 +406,8 @@ void checkTouch() {
     currentPreset = 4;
   if (t11 && t12) {
     freq = map(analogRead(10),0,4095,870,1080);
-    Serial.print("Preset 4: ");
-    Serial.println(freq);
+    Debug("Preset 4: ");
+    Debugln(freq);
     //Show LED
     pinMode(40,INPUT);
     pinMode(41,OUTPUT);
@@ -376,18 +415,22 @@ void checkTouch() {
     digitalWrite(41,LOW);
     digitalWrite(42,HIGH);
   }
-  /*
   if (t7 && (currentPreset==0)) {
     freq = map(analogRead(1),0,4095,870,1080);
     if (freq==currentFreq) {
       freq = 0; //Don't do anything if the frequency is still the same
     }
   }
-  */
   if (freq!=0) {
     Station* station;
     if (getStation(freq,&station)) {
-      Serial.println(station->url);
+      currentFreq = freq;
+      Debug(freq);
+      Debug(": ");
+      Debugln(station->url);
+      //Temporary check - does the event page works?
+      sprintf(sseBuffer,"data: %s\n\n", station->url);
+      pushEvent();
       if (audioAvailable) {
         audio.connecttohost(station->url);
       }
@@ -404,7 +447,6 @@ void loop(){
       shouldConnectToWiFi = false;
       setupWiFi();
       if (networkAvailable) {
-        loadStations();
         setupAudio();
         setupWebServer();
       }
