@@ -18,7 +18,7 @@
 
 #include "secrets.h"
 const char *ssidAP = SECRET_SSID_AP;
-#define MAX_CONNECT_TRIES 1
+#define MAX_CONNECT_TRIES 10
 
 //Needed for checking sensors every 0.5 second
 unsigned long previousMillis = 0;
@@ -148,6 +148,11 @@ void my_audio_info(Audio::msg_t m) {
   Debug(": ");
   Debugln(m.msg);
 
+  if (m.e==Audio::evt_name) {
+    //Station found
+    digitalWrite(39,HIGH);
+  }
+
   //New option for web event streaming
   sprintf(sseBuffer,"data: %s: %s\n\n", m.s, m.msg);
   pushEvent();
@@ -173,7 +178,8 @@ void initSensors() {
   pinMode(12,INPUT);
   pinMode(13,INPUT);
   pinMode(14,INPUT);
-  //pinMode(39,OUTPUT);
+  pinMode(39,OUTPUT);
+  digitalWrite(39,LOW);
 }
 
 void setupWiFiAccessPoint() {
@@ -254,6 +260,8 @@ void setupAudio() {
 
 void setupWebServer() {
   server.on("/", handleRoot);
+  server.on("/events", handleEventsPage);
+  server.on("/api/events",HTTP_GET,handleEventsAPI); //Web alternative for serial debugging
 }
 
 void setup() {
@@ -403,8 +411,8 @@ void checkTouch() {
     digitalWrite(42,LOW);
     digitalWrite(41,HIGH);
   };
-    currentPreset = 4;
   if (t11 && t12) {
+    currentPreset = 4;
     freq = map(analogRead(10),0,4095,870,1080);
     Debug("Preset 4: ");
     Debugln(freq);
@@ -417,22 +425,22 @@ void checkTouch() {
   }
   if (t7 && (currentPreset==0)) {
     freq = map(analogRead(1),0,4095,870,1080);
-    if (freq==currentFreq) {
-      freq = 0; //Don't do anything if the frequency is still the same
-    }
   }
   if (freq!=0) {
     Station* station;
     if (getStation(freq,&station)) {
-      currentFreq = freq;
-      Debug(freq);
-      Debug(": ");
-      Debugln(station->url);
-      //Temporary check - does the event page works?
-      sprintf(sseBuffer,"data: %s\n\n", station->url);
-      pushEvent();
-      if (audioAvailable) {
-        audio.connecttohost(station->url);
+      if (currentFreq!=station->freq) { //Only switch if a different station is selected!
+        currentFreq = station->freq;
+        Debug(freq);
+        Debug(": ");
+        Debugln(station->url);
+        //Temporary check - does the event page works?
+        sprintf(sseBuffer,"data: %s\n\n", station->url);
+        pushEvent();
+        if (audioAvailable) {
+          digitalWrite(39,LOW); //Reset tuning light
+          audio.connecttohost(station->url);
+        }
       }
     }
   }
