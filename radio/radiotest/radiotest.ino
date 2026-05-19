@@ -10,6 +10,7 @@
 #include "config-page.h"
 #include "events-page.h"
 #include "radiostations.h"
+#include "css-file.h"
 
 // Digital I/O used
 #define I2S_DOUT      21
@@ -88,11 +89,6 @@ void handleEventsAPI() {
 
 }
 
-void handleWifiConfig() {
-  //server.send(200,CONFIG_HTML);
-  server.send(200,"text/html",buildConfigHtml());
-}
-
 void handleWifiConfigAPI() {
   String body = server.arg("plain");
   if (body.length() == 0) {
@@ -129,7 +125,15 @@ void handleWifiConfigAPI() {
 }
 
 void handleRoot() {
-  server.send(200,"text/html","<h1>Hello from the radio</h1>");
+  if (networkAvailable) {
+    server.send(200,"text/html","<h1>Hello from the radio</h1>");
+  } else {
+    server.send(200,"text/html",buildConfigHtml());
+  }
+}
+
+void handleCSS() {
+  server.send(200,"text/css",MAIN_CSS);
 }
 
 void pushEvent() {
@@ -142,19 +146,30 @@ void pushEvent() {
   }
 }
 
+void pushVolumeEvent(int value1, int value2) {
+  sprintf(sseBuffer,"event: volume\ndata: %d/%d\n\n",value1,value2);
+  pushEvent();
+}
+
 // callbacks
 void my_audio_info(Audio::msg_t m) {
   Debug(m.s);
   Debug(": ");
   Debugln(m.msg);
 
-  if (m.e==Audio::evt_name) {
-    //Station found
-    digitalWrite(39,HIGH);
-  }
-
   //New option for web event streaming
-  sprintf(sseBuffer,"data: %s: %s\n\n", m.s, m.msg);
+  switch (m.e) {
+    case Audio::evt_name:
+      sprintf(sseBuffer,"event: station\ndata: %s\n\n", m.msg);
+      //Station found
+      digitalWrite(39,HIGH);
+      break;
+    case Audio::evt_streamtitle:
+      sprintf(sseBuffer,"event: song\ndata: %s\n\n", m.msg);
+      break;
+    default:
+      sprintf(sseBuffer,"event: info\ndata: %s: %s\n\n", m.s, m.msg);
+  }
   pushEvent();
 }
 
@@ -242,9 +257,10 @@ void setupAudio() {
   Debug(" LRC: ");
   Debugln(I2S_LRC);
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
-  //Linear volume curve (as the potentiometer is already exponential)
+  //SQRT volume curve (as the potentiometer is already exponential)
   audio.setVolumeCurve([](float t) {
-    return -60.0f + 60.0f * t;
+    //return -60.0f + 60.0f * t;
+    return -60.8f + 60.8f * sqrt(t);
   });
   audio.setVolume(15); // default 0...21
 
@@ -260,8 +276,9 @@ void setupAudio() {
 
 void setupWebServer() {
   server.on("/", handleRoot);
+  server.on("/main.css", handleCSS);
   server.on("/events", handleEventsPage);
-  server.on("/api/events",HTTP_GET,handleEventsAPI); //Web alternative for serial debugging
+  server.on("/api/events",HTTP_GET,handleEventsAPI);
 }
 
 void setup() {
@@ -274,26 +291,21 @@ void setup() {
   Debugln("Starting");
   //Try a connection to the WiFI
   setupWiFi();
+  setupWebServer();
   if (networkAvailable) {
     setupAudio();
-    setupWebServer();
   } else {
     //If Wifi setup fails, create an access point (to initialize everything)
     setupWiFiAccessPoint();
-    server.on("/", handleWifiConfig);
     server.on("/api/wificonfig", handleWifiConfigAPI);
-    server.on("/events", handleEventsPage);
-    server.on("/api/events",HTTP_GET,handleEventsAPI); //Web alternative for serial debugging
 
     //Captive-portal probes (Android, iOS, Windows)
-    /*
     server.on("/generate_204", [](){ redirectRoot(); });
     server.on("/hotspot-detect.html",[](){ redirectRoot(); });
     server.on("/ncsi.txt", [](){ server.send(200,"text/plain","Microsoft NCSI"); });
     server.on("/connecttest.txt", [](){ server.send(200,"text/plain",""); });
     server.on("/fwlink", [](){ redirectRoot(); });
-    */
-    server.onNotFound([](){ handleWifiConfig(); });
+    server.onNotFound([](){ handleRoot(); });
   }
   server.begin();
 }
@@ -312,19 +324,21 @@ void checkSensors() {
 }
 
 void checkAudioSettings() {
-  int volume = map(analogRead(4),0,4095,0,21);
+  int value = analogRead(4);
+  int volume = map(value,0,4095,0,21);
   //if ((volume==newVolume) && (volume!=currentVolume)) {
   if (volume!=currentVolume) {
     currentVolume = volume;
     Debug("New volume: ");
     Debugln(currentVolume);
+    pushVolumeEvent(currentVolume,value);
     if (audioAvailable) {
       audio.setVolume(currentVolume);
     }
   } else {
     newVolume = volume; //When volume stays the same for .5 seconds, the volume will change
   };
-  int treble = map(analogRead(5),0,4095,-12,12);
+  int treble = map(analogRead(5),0,4095,12,-12); //Treble potentiometer is wired in reverse
   if ((treble==newTreble) && (treble!=currentTreble)) {
     currentTreble = treble;
     Debug("New treble: ");
