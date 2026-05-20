@@ -9,6 +9,7 @@
 #include "debug.h"
 #include "config-page.h"
 #include "events-page.h"
+#include "radio-page.h"
 #include "radiostations.h"
 #include "css-file.h"
 
@@ -64,8 +65,22 @@ String buildConfigHtml() {
   return html;
 }
 
+String buildRadioStationsHtml() {
+  // Dit kan eigenlijk beter met een afzonderlijke JSON API, waardoor de originel pagina statisch blijft...
+  String html = FPSTR(RADIO_HTML);
+  String opts;
+  for (int i = 0; i < stationCount; i++) {
+    // radiobuttons
+    opts += "<label for='rs"+ String(i) +"' class='scroll-item'>";
+    opts += stations[i].url;
+    opts += "<span>" + String(0.1*stations[i].freq,1) + "</span>";
+    opts += "<input id='rs"+String(i)+"' type='radio' name='stations'></label>\n";
+  }
+  html.replace("<!--OPTIONS-->", opts);
+  return html;
+}
+
 void handleEventsPage() {
-  Debugln("Events page");
   server.send(200,"text/html",EVENTS_HTML);
 }
 
@@ -126,7 +141,8 @@ void handleWifiConfigAPI() {
 
 void handleRoot() {
   if (networkAvailable) {
-    server.send(200,"text/html","<h1>Hello from the radio</h1>");
+    //server.send(200,"text/html","<h1>Hello from the radio</h1>");
+    server.send(200,"text/html",buildRadioStationsHtml());
   } else {
     server.send(200,"text/html",buildConfigHtml());
   }

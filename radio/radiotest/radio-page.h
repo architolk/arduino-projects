@@ -21,14 +21,9 @@ const char RADIO_HTML[] PROGMEM = R"=====(
 
     <form id="wifiForm" autocomplete="off">
       <div class="row">
-        <div>
-          <label for="station">Station</label>
-          <input id="station" name="station" inputmode="text" placeholder="Bijv. MijnNetwerk" list="stationlist" required />
-          <datalist id="stationlist">
+        <section class="scroll-container">
             <!--OPTIONS-->
-          </datalist>
-        </div>
-
+        </section>
       </div>
 
       <div class="actions">
@@ -37,6 +32,18 @@ const char RADIO_HTML[] PROGMEM = R"=====(
       </div>
     </form>
   </main>
+
+  <script>
+    let observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        with(entry) if(isIntersecting) target.children[1].checked = true;
+      });
+    }, {
+      root: document.querySelector(`.scroll-container`), rootMargin: `-51% 0px -49% 0px`
+    });
+
+    document.querySelectorAll(`.scroll-item`).forEach(item => observer.observe(item));
+  </script>
 
   <script>
     const API_URL = "/api/setstation";

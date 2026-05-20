@@ -6,7 +6,7 @@ const char EVENTS_HTML[] PROGMEM = R"=====(
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Radio - WiFi instellen</title>
+  <title>Radio - Info</title>
   <link rel="stylesheet" href="/main.css" >
 </head>
 

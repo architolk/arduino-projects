@@ -117,7 +117,62 @@ button[disabled] {
 .status.ok { color: var(--ok); }
 .status.err { color: var(--danger); }
 
-/* Klein beetje extra comfort op mobiel */
+.scroll-container {
+/* sizing and layout */
+  --itemHeight: 60px;
+  --itemGap: 10px;
+  --containerHeight: calc((var(--itemHeight) * 7) + (var(--itemGap) * 6));
+  width: 400px;
+  height: var(--containerHeight);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  row-gap: var(--itemGap);
+  border-radius: 4px;
+/* scrolling */
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  overscroll-behavior-y: none;
+/* paint */
+  --topBit: calc((var(--containerHeight) - var(--itemHeight))/2);
+  --footBit: calc((var(--containerHeight) + var(--itemHeight))/2);
+  background: linear-gradient(rgb(254 251 240), rgb(254 251 240) var(--topBit), rgb(59 130 246 / .5) var(--topBit), rgb(59 130 246 / .5) var(--footBit), rgb(254 251 240) var(--footBit));
+  box-shadow: 0 0 10px #eee;
+
+  .scroll-item {
+  /* sizing and layout */
+    width: 90%;
+    flex: 0 0 var(--itemHeight);
+    box-sizing: border-box;
+    padding-top: 5px;
+    padding-inline: 10px;
+    position: relative;
+    border-radius: inherit;
+    &:first-of-type {
+      margin-block-start: var(--topBit); }
+    &:last-of-type {
+      margin-block-end: var(--topBit); }
+  /* paint and font */
+    background: linear-gradient(to right, rgb(20 20 100), rgb(0 0 51));
+    box-shadow: 0 0 4px rgb(235 122 51);
+    color: white;
+
+    scroll-snap-align: center;
+    pointer-events: none;
+
+    input {
+      appearance: none; }
+    span {
+      position: absolute;
+      right: 10px;
+      bottom: 5px;
+    }
+
+    &:has(:checked) {
+      background: #3b82f6; }
+  }
+}
+
 @media (max-width: 420px) {
   .card { padding: 16px; border-radius: 14px; }
   input, button { border-radius: 12px; }
