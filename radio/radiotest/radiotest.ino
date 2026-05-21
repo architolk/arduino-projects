@@ -1,10 +1,14 @@
 #include <Arduino.h>
 #include <WiFi.h>
-#include <WebServer.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 #include <DNSServer.h>
 #include <Preferences.h>
 #include <Audio.h>
 #include <ArduinoJson.h>
+
+#include <esp_ota_ops.h>
+#include <ElegantOTA.h>
 
 #include "debug.h"
 #include "config-page.h"
@@ -35,15 +39,15 @@ boolean audioAvailable = false;
 
 Audio audio;
 
-WebServer server(80);
+AsyncWebServer server(80);
+AsyncEventSource events("/api/events");
 DNSServer dnsServer;
-WiFiClient sseClient;
 char sseBuffer[200];
 Preferences prefs;
 
-int currentVolume, newVolume = 0;
-int currentBass, newBass = 0;
-int currentTreble, newTreble = 0;
+int currentVolume = 0;
+int currentBass = 0;
+int currentTreble = 0;
 int currentFreq = 0;
 int currentPreset = 0; //FM Manual;
 
@@ -80,34 +84,14 @@ String buildRadioStationsHtml() {
   return html;
 }
 
-void handleEventsPage() {
-  server.send(200,"text/html",EVENTS_HTML);
+void handleEventsPage(AsyncWebServerRequest *request) {
+  request->send(200,"text/html",EVENTS_HTML);
 }
 
-void handleEventsAPI() {
-  // Keep client connection open
-  sseClient = server.client();
-
-  /*
-  server.sendHeader("Content-Type", "text/event-stream");
-  server.sendHeader("Cache-Control", "no-cache");
-  server.sendHeader("Connection", "keep-alive");
-  server.send(200);
-  */
-  sseClient.println("HTTP/1.1 200 OK");
-  sseClient.println("Content-Type: text/event-stream");
-  sseClient.println("Cache-Control: no-cache");
-  sseClient.println("Connection: keep-alive");
-  sseClient.println();  // end of headers
-
-  Debugln("SSE client connected");
-
-}
-
-void handleWifiConfigAPI() {
-  String body = server.arg("plain");
+void handleWifiConfigAPI(AsyncWebServerRequest *request) {
+  String body = request->arg("plain");
   if (body.length() == 0) {
-    server.send(400, "text/plain", "Missing body");
+    request->send(400, "text/plain", "Missing body");
     return;
   }
 
@@ -115,14 +99,14 @@ void handleWifiConfigAPI() {
   StaticJsonDocument<256> doc;
   DeserializationError err = deserializeJson(doc, body);
   if (err) {
-    server.send(400, "text/plain", "Invalid JSON");
+    request->send(400, "text/plain", "Invalid JSON");
     return;
   }
 
   const char* ssid = doc["ssid"];
   const char* password = doc["password"];
   if (!ssid || !password || String(ssid).length() == 0) {
-    server.send(400, "text/plain", "Missing ssid/password");
+    request->send(400, "text/plain", "Missing ssid/password");
     return;
   }
 
@@ -136,35 +120,20 @@ void handleWifiConfigAPI() {
   shouldConnectToWiFi = true;
 
   // Succes
-  server.send(200, "application/json", "{\"status\":\"ok\"}");
+  request->send(200, "application/json", "{\"status\":\"ok\"}");
 }
 
-void handleRoot() {
+void handleRoot(AsyncWebServerRequest *request) {
   if (networkAvailable) {
     //server.send(200,"text/html","<h1>Hello from the radio</h1>");
-    server.send(200,"text/html",buildRadioStationsHtml());
+    request->send(200,"text/html",buildRadioStationsHtml());
   } else {
-    server.send(200,"text/html",buildConfigHtml());
+    request->send(200,"text/html",buildConfigHtml());
   }
 }
 
-void handleCSS() {
-  server.send(200,"text/css",MAIN_CSS);
-}
-
-void pushEvent() {
-  //Depends on the global sseBuffer
-  if (sseClient && sseClient.connected()) {
-    if (sseClient.print(sseBuffer)==0) {
-      Debugln("Client disconnected");
-      sseClient.stop();
-    }
-  }
-}
-
-void pushVolumeEvent(int value1, int value2) {
-  sprintf(sseBuffer,"event: volume\ndata: %d/%d\n\n",value1,value2);
-  pushEvent();
+void handleCSS(AsyncWebServerRequest *request) {
+  request->send(200,"text/css",MAIN_CSS);
 }
 
 // callbacks
@@ -176,17 +145,17 @@ void my_audio_info(Audio::msg_t m) {
   //New option for web event streaming
   switch (m.e) {
     case Audio::evt_name:
-      sprintf(sseBuffer,"event: station\ndata: %s\n\n", m.msg);
+      events.send(m.msg,"station");
       //Station found
       digitalWrite(39,HIGH);
       break;
     case Audio::evt_streamtitle:
-      sprintf(sseBuffer,"event: song\ndata: %s\n\n", m.msg);
+      events.send(m.msg,"song");
       break;
     default:
-      sprintf(sseBuffer,"event: info\ndata: %s: %s\n\n", m.s, m.msg);
+      sprintf(sseBuffer,"%s: %s\n\n", m.s, m.msg);
+      events.send(sseBuffer,"info");
   }
-  pushEvent();
 }
 
 void initAudio() {
@@ -216,6 +185,8 @@ void initSensors() {
 void setupWiFiAccessPoint() {
   Debugln("Scanning for networks");
   WiFi.mode(WIFI_AP_STA);
+  WiFi.disconnect();
+  delay(100);
   int n = WiFi.scanNetworks();
   networkCount = min(n, MAXNETWORKS);
   for (int i=0; i<networkCount; i++) {
@@ -294,17 +265,34 @@ void setupWebServer() {
   server.on("/", handleRoot);
   server.on("/main.css", handleCSS);
   server.on("/events", handleEventsPage);
-  server.on("/api/events",HTTP_GET,handleEventsAPI);
+  events.onConnect([](AsyncEventSourceClient *client){
+    if(client->lastId()){
+      Serial.printf("Client reconnected!");
+    }
+  });
+  server.addHandler(&events);
+}
+
+void debugPartitionInfo() {
+  const esp_partition_t *app = esp_ota_get_running_partition();
+
+  Debug("Running partition: ");
+  Debugln(app->label);
+  Debug("Address: ");
+  Debugln(app->address);
+  Debug("Size: ");
+  Debugln(app->size / 1024);
 }
 
 void setup() {
   initSensors();
   DebugBegin(115200);
   delay(1000);
-  initAudio();
-  loadStations();
   Debugln("");
   Debugln("Starting");
+  debugPartitionInfo();
+  initAudio();
+  loadStations();
   //Try a connection to the WiFI
   setupWiFi();
   setupWebServer();
@@ -316,18 +304,21 @@ void setup() {
     server.on("/api/wificonfig", handleWifiConfigAPI);
 
     //Captive-portal probes (Android, iOS, Windows)
+    /*
     server.on("/generate_204", [](){ redirectRoot(); });
     server.on("/hotspot-detect.html",[](){ redirectRoot(); });
     server.on("/ncsi.txt", [](){ server.send(200,"text/plain","Microsoft NCSI"); });
     server.on("/connecttest.txt", [](){ server.send(200,"text/plain",""); });
     server.on("/fwlink", [](){ redirectRoot(); });
     server.onNotFound([](){ handleRoot(); });
+    */
   }
   server.begin();
+  ElegantOTA.begin(&server);
 }
 
-void redirectRoot() {
-  server.send(200,"text/html","<html><body><script>location.href='/'</script></body></html>");
+void redirectRoot(AsyncWebServerRequest *request) {
+  request->send(200,"text/html","<html><body><script>location.href='/'</script></body></html>");
 }
 
 void checkSensors() {
@@ -342,39 +333,33 @@ void checkSensors() {
 void checkAudioSettings() {
   int value = analogRead(4);
   int volume = map(value,0,4095,0,21);
-  //if ((volume==newVolume) && (volume!=currentVolume)) {
   if (volume!=currentVolume) {
     currentVolume = volume;
     Debug("New volume: ");
     Debugln(currentVolume);
-    pushVolumeEvent(currentVolume,value);
+    sprintf(sseBuffer,"%d/%d",currentVolume,value);
+    events.send(sseBuffer,"volume");
     if (audioAvailable) {
       audio.setVolume(currentVolume);
     }
-  } else {
-    newVolume = volume; //When volume stays the same for .5 seconds, the volume will change
-  };
+  }
   int treble = map(analogRead(5),0,4095,12,-12); //Treble potentiometer is wired in reverse
-  if ((treble==newTreble) && (treble!=currentTreble)) {
+  if (treble!=currentTreble) {
     currentTreble = treble;
     Debug("New treble: ");
     Debugln(currentTreble);
     if (audioAvailable) {
       audio.setTone(currentBass,0,currentTreble);
     }
-  } else {
-    newTreble = treble;
   };
   int bass = map(analogRead(6),0,4095,-12,12);
-  if ((bass==newBass) && (bass!=currentBass)) {
+  if (bass!=currentBass) {
     currentBass = bass;
     Debug("New bass: ");
     Debugln(currentBass);
     if (audioAvailable) {
       audio.setTone(currentBass,0,currentTreble);
     }
-  } else {
-    newBass = bass;
   };
 }
 
@@ -464,9 +449,6 @@ void checkTouch() {
         Debug(freq);
         Debug(": ");
         Debugln(station->url);
-        //Temporary check - does the event page works?
-        sprintf(sseBuffer,"data: %s\n\n", station->url);
-        pushEvent();
         if (audioAvailable) {
           digitalWrite(39,LOW); //Reset tuning light
           audio.connecttohost(station->url);
@@ -491,6 +473,6 @@ void loop(){
     }
   }
   checkSensors();
-  server.handleClient();
+  ElegantOTA.loop();
   vTaskDelay(1);
 }
