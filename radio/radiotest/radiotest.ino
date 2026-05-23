@@ -3,6 +3,7 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <DNSServer.h>
+#include <ESPmDNS.h>
 #include <Preferences.h>
 #include <Audio.h>
 #include <ArduinoJson.h>
@@ -244,11 +245,12 @@ void setupAudio() {
   Debug(" LRC: ");
   Debugln(I2S_LRC);
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
-  //SQRT volume curve (as the potentiometer is already exponential)
+  /*
   audio.setVolumeCurve([](float t) {
     //return -60.0f + 60.0f * t;
     return -60.8f + 60.8f * sqrt(t);
   });
+  */
   audio.setVolume(15); // default 0...21
 
   Station* station;
@@ -271,6 +273,16 @@ void setupWebServer() {
     }
   });
   server.addHandler(&events);
+}
+
+void setupIPName() {
+  if (MDNS.begin(ssidAP)) {
+    Debug("mDNS started. Access at http://");
+    Debug(ssidAP);
+    Debugln(".local");
+  } else {
+    Debugln("Error starting mDNS");
+  }
 }
 
 void debugPartitionInfo() {
@@ -313,6 +325,7 @@ void setup() {
     server.onNotFound([](){ handleRoot(); });
     */
   }
+  setupIPName();
   server.begin();
   ElegantOTA.begin(&server);
 }
@@ -331,7 +344,8 @@ void checkSensors() {
 }
 
 void checkAudioSettings() {
-  int value = analogRead(4);
+  float value = analogRead(4);
+  value = powf(value/4095.0f,0.31f)*4095.0f; //Compensate for log potentiometer
   int volume = map(value,0,4095,0,21);
   if (volume!=currentVolume) {
     currentVolume = volume;
