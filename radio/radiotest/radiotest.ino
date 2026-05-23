@@ -89,23 +89,11 @@ void handleEventsPage(AsyncWebServerRequest *request) {
   request->send(200,"text/html",EVENTS_HTML);
 }
 
-void handleWifiConfigAPI(AsyncWebServerRequest *request) {
-  String body = request->arg("plain");
-  if (body.length() == 0) {
-    request->send(400, "text/plain", "Missing body");
-    return;
-  }
+void handleWifiConfigAPI(AsyncWebServerRequest *request, JsonVariant &json) {
 
-  // Parse JSON
-  StaticJsonDocument<256> doc;
-  DeserializationError err = deserializeJson(doc, body);
-  if (err) {
-    request->send(400, "text/plain", "Invalid JSON");
-    return;
-  }
-
-  const char* ssid = doc["ssid"];
-  const char* password = doc["password"];
+  const JsonObject obj = json.as<JsonObject>();
+  const char* ssid = obj["ssid"];
+  const char* password = obj["password"];
   if (!ssid || !password || String(ssid).length() == 0) {
     request->send(400, "text/plain", "Missing ssid/password");
     return;
@@ -131,6 +119,10 @@ void handleRoot(AsyncWebServerRequest *request) {
   } else {
     request->send(200,"text/html",buildConfigHtml());
   }
+}
+
+void handleWifiConfig(AsyncWebServerRequest *request) {
+  request->send(200,"text/html",buildConfigHtml());
 }
 
 void handleCSS(AsyncWebServerRequest *request) {
@@ -228,7 +220,10 @@ void setupWiFi() {
   while ((WiFi.status() != WL_CONNECTED) && (maxTry < MAX_CONNECT_TRIES)) {
     Debug(".");
     maxTry++;
-    delay(1500);
+    rgbLedWrite(RGB_BUILTIN, 0, 0, 0);
+    delay(750);
+    rgbLedWrite(RGB_BUILTIN, 255,0,0);
+    delay(750);
   }
   Debugln("");
   if (WiFi.status() == WL_CONNECTED) {
@@ -267,9 +262,13 @@ void setupWebServer() {
   server.on("/", handleRoot);
   server.on("/main.css", handleCSS);
   server.on("/events", handleEventsPage);
+  server.on("/wificonfig",handleWifiConfig);
+  AsyncCallbackJsonWebHandler* stationsHandler = new AsyncCallbackJsonWebHandler("/api/wificonfig",handleWifiConfigAPI);
+  server.addHandler(stationsHandler);
+  //server.on("/api/wificonfig", handleWifiConfigAPI);
   events.onConnect([](AsyncEventSourceClient *client){
     if(client->lastId()){
-      Serial.printf("Client reconnected!");
+      Debugln("Client reconnected!");
     }
   });
   server.addHandler(&events);
@@ -297,23 +296,27 @@ void debugPartitionInfo() {
 }
 
 void setup() {
+  rgbLedWrite(RGB_BUILTIN, 255, 0, 0);  // Red - indicating we've got lift-off
   initSensors();
   DebugBegin(115200);
   delay(1000);
   Debugln("");
   Debugln("Starting");
+  Debug("RGB Buildtin pin: ");
+  Debugln(RGB_BUILTIN);
   debugPartitionInfo();
   initAudio();
   loadStations();
   //Try a connection to the WiFI
   setupWiFi();
+  rgbLedWrite(RGB_BUILTIN,0,0,0); //LED off
   setupWebServer();
   if (networkAvailable) {
     setupAudio();
   } else {
     //If Wifi setup fails, create an access point (to initialize everything)
+    rgbLedWrite(RGB_BUILTIN, 0, 165, 0); //Setting up Wifi access-point
     setupWiFiAccessPoint();
-    server.on("/api/wificonfig", handleWifiConfigAPI);
 
     //Captive-portal probes (Android, iOS, Windows)
     /*
@@ -351,7 +354,7 @@ void checkAudioSettings() {
     currentVolume = volume;
     Debug("New volume: ");
     Debugln(currentVolume);
-    sprintf(sseBuffer,"%d/%d",currentVolume,value);
+    sprintf(sseBuffer,"%d",currentVolume);
     events.send(sseBuffer,"volume");
     if (audioAvailable) {
       audio.setVolume(currentVolume);
@@ -362,6 +365,8 @@ void checkAudioSettings() {
     currentTreble = treble;
     Debug("New treble: ");
     Debugln(currentTreble);
+    sprintf(sseBuffer,"%d",currentTreble);
+    events.send(sseBuffer,"treble");
     if (audioAvailable) {
       audio.setTone(currentBass,0,currentTreble);
     }
@@ -371,6 +376,8 @@ void checkAudioSettings() {
     currentBass = bass;
     Debug("New bass: ");
     Debugln(currentBass);
+    sprintf(sseBuffer,"%d",currentBass);
+    events.send(sseBuffer,"bass");
     if (audioAvailable) {
       audio.setTone(currentBass,0,currentTreble);
     }
@@ -481,6 +488,7 @@ void loop(){
       shouldConnectToWiFi = false;
       setupWiFi();
       if (networkAvailable) {
+        rgbLedWrite(RGB_BUILTIN,0,0,0); //LED off
         setupAudio();
         setupWebServer();
       }

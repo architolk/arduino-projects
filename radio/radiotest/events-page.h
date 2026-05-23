@@ -58,6 +58,14 @@ const char EVENTS_HTML[] PROGMEM = R"=====(
       const elem = document.getElementById("volume");
       elem.value = event.data;
     });
+    source.addEventListener("treble", (event) => {
+      const elem = document.getElementById("treble");
+      elem.value = event.data;
+    });
+    source.addEventListener("bass", (event) => {
+      const elem = document.getElementById("bass");
+      elem.value = event.data;
+    });
     source.addEventListener("song", (event) => {
       const elem = document.getElementById("song");
       elem.value = event.data;
