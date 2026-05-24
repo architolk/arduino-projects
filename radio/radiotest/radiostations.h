@@ -70,6 +70,34 @@ bool addStation(int freq, const char* url) {
   return true;
 }
 
+bool deleteStation(int freq) {
+  if (stationCount == 0) return false;
+  int pos = 0;
+  // find station
+  while (pos < stationCount && stations[pos].freq < freq) {
+    pos++;
+  }
+  // not found
+  if (pos == stationCount || stations[pos].freq != freq) {
+    return false;
+  }
+  // shift remaining elements up
+  if (pos < stationCount - 1) {
+    memmove(&stations[pos], &stations[pos + 1], (stationCount - pos - 1) * sizeof(Station));
+  }
+  stationCount--;
+  return true;
+}
+
+//Update = Delete + Add
+bool updateStation(int oldFreq, int newFreq, const char* url) {
+  if (deleteStation(oldFreq)) {
+    return addStation(newFreq, url);
+  } else {
+    return false;
+  }
+}
+
 //Load stations from PROGMEM
 void loadStations() {
   float freq;

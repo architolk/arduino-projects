@@ -22,7 +22,7 @@ const char CONFIG_HTML[] PROGMEM = R"=====(
           <label for="ssid">SSID</label>
           <input id="ssid" name="ssid" inputmode="text" placeholder="Bijv. MijnNetwerk" list="ssidlist" required />
           <datalist id="ssidlist">
-            <!--OPTIONS-->
+            %OPTIONS%
           </datalist>
         </div>
 

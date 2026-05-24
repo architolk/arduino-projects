@@ -56,6 +56,21 @@ int currentPreset = 0; //FM Manual;
 String networks[MAXNETWORKS];
 int networkCount = 0;
 
+String processNetworks(const String& var) {
+  if (var=="OPTIONS") {
+    String opts;
+    for (int i = 0; i < networkCount; i++) {
+      // datalist gebruikt <option value="...">
+      opts += "<option value=\"";
+      opts += networks[i];
+      opts += "\"></option>\n";
+    }
+    return opts;
+  }
+  return String();
+}
+
+/*
 String buildConfigHtml() {
   // Injecteer <option> regels in de datalist placeholder
   String html = FPSTR(CONFIG_HTML);
@@ -69,33 +84,104 @@ String buildConfigHtml() {
   html.replace("<!--OPTIONS-->", opts);
   return html;
 }
+*/
 
+String processRadioStations(const String& var) {
+  if (var=="OPTIONS") {
+    String opts;
+    for (int i = 0; i < stationCount; i++) {
+      // radiobuttons
+      opts += "<label class='scroll-item'>";
+      opts += stations[i].url;
+      opts += "<span>" + String(0.1*stations[i].freq,1) + "</span>";
+      opts += "<input type='radio' name='stations'></label>\n";
+    }
+    return opts;
+  }
+  return String();
+}
+
+/*
 String buildRadioStationsHtml() {
   // Dit kan eigenlijk beter met een afzonderlijke JSON API, waardoor de originel pagina statisch blijft...
   String html = FPSTR(RADIO_HTML);
   String opts;
   for (int i = 0; i < stationCount; i++) {
     // radiobuttons
-    opts += "<label for='rs"+ String(i) +"' class='scroll-item'>";
+    opts += "<label class='scroll-item'>";
     opts += stations[i].url;
     opts += "<span>" + String(0.1*stations[i].freq,1) + "</span>";
-    opts += "<input id='rs"+String(i)+"' type='radio' name='stations'></label>\n";
+    opts += "<input type='radio' name='stations'></label>\n";
   }
   html.replace("<!--OPTIONS-->", opts);
   return html;
 }
+*/
 
 void handleEventsPage(AsyncWebServerRequest *request) {
-  request->send(200,"text/html",EVENTS_HTML);
+  request->send_P(200,"text/html",EVENTS_HTML);
+}
+
+void handleRadioEditAPI(AsyncWebServerRequest *request, JsonVariant &json) {
+  const JsonObject obj = json.as<JsonObject>();
+  if (!obj) {
+    request->send(400, "text/plain", "Gegevens ontbreken");
+    return;
+  }
+  const int action = obj["action"];
+  const int freq = obj["freq"];
+  const int newFreq = obj["newfreq"];
+  const char* url = obj["url"];
+  if (!url || String(url).length() == 0 ) {
+    request->send(400, "text/plain", "Waarden ontbreken");
+    return;
+  }
+  if ((freq<875) || (freq>1080)) {
+    request->send(400, "text/plain", "De frequentie is niet tussen 87.5 en 108.0");
+  }
+  if (action==3) {
+    if ((newFreq<875) || (newFreq>1080)) {
+      request->send(400, "text/plain", "De frequentie is niet tussen 87.5 en 108.0");
+    }
+    if (updateStation(freq,newFreq,url)) {
+      request->send(200, "application/json", "{\"status\":\"ok\"}");
+    } else {
+      request->send(400, "text/plain", "Fout bij aanpassen radiostation");
+    }
+    return;
+  }
+  if (action==2) {
+    request->send(400, "text/plain", "Add not implemented yet");
+    if (addStation(freq,url)) {
+      request->send(200, "application/json", "{\"status\":\"ok\"}");
+    } else {
+      request->send(400, "text/plain", "Fout bij toevoegen radiostation");
+    }
+    return;
+  }
+  if (action==1) {
+    if (deleteStation(freq)) {
+      request->send(200, "application/json", "{\"status\":\"ok\"}");
+    } else {
+      request->send(400, "text/plain", "Fout bij verwijderen radiostation");
+    }
+    return;
+  }
+  request->send(400, "text/plain", "Onbekende actie");
+  return;
 }
 
 void handleWifiConfigAPI(AsyncWebServerRequest *request, JsonVariant &json) {
 
   const JsonObject obj = json.as<JsonObject>();
+  if (!obj) {
+    request->send(400, "text/plain", "Gegevens ontbreken");
+    return;
+  }
   const char* ssid = obj["ssid"];
   const char* password = obj["password"];
   if (!ssid || !password || String(ssid).length() == 0) {
-    request->send(400, "text/plain", "Missing ssid/password");
+    request->send(400, "text/plain", "ssid/password ontbreekt");
     return;
   }
 
@@ -114,19 +200,22 @@ void handleWifiConfigAPI(AsyncWebServerRequest *request, JsonVariant &json) {
 
 void handleRoot(AsyncWebServerRequest *request) {
   if (networkAvailable) {
-    //server.send(200,"text/html","<h1>Hello from the radio</h1>");
-    request->send(200,"text/html",buildRadioStationsHtml());
+    request->send_P(200,"text/html",EVENTS_HTML);
   } else {
-    request->send(200,"text/html",buildConfigHtml());
+    request->send_P(200,"text/html",CONFIG_HTML,processNetworks);
   }
 }
 
 void handleWifiConfig(AsyncWebServerRequest *request) {
-  request->send(200,"text/html",buildConfigHtml());
+  request->send_P(200,"text/html",CONFIG_HTML,processNetworks);
+}
+
+void handleStationsPage(AsyncWebServerRequest *request) {
+  request->send_P(200,"text/html",RADIO_HTML,processRadioStations);
 }
 
 void handleCSS(AsyncWebServerRequest *request) {
-  request->send(200,"text/css",MAIN_CSS);
+  request->send_P(200,"text/css",MAIN_CSS);
 }
 
 // callbacks
@@ -262,10 +351,10 @@ void setupWebServer() {
   server.on("/", handleRoot);
   server.on("/main.css", handleCSS);
   server.on("/events", handleEventsPage);
+  server.on("/stations",handleStationsPage);
   server.on("/wificonfig",handleWifiConfig);
-  AsyncCallbackJsonWebHandler* stationsHandler = new AsyncCallbackJsonWebHandler("/api/wificonfig",handleWifiConfigAPI);
-  server.addHandler(stationsHandler);
-  //server.on("/api/wificonfig", handleWifiConfigAPI);
+  server.addHandler(new AsyncCallbackJsonWebHandler("/api/wificonfig",handleWifiConfigAPI));
+  server.addHandler(new AsyncCallbackJsonWebHandler("/api/stations",handleRadioEditAPI));
   events.onConnect([](AsyncEventSourceClient *client){
     if(client->lastId()){
       Debugln("Client reconnected!");

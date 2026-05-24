@@ -17,122 +17,217 @@ const char RADIO_HTML[] PROGMEM = R"=====(
 <body>
   <main class="card">
     <h1>Radio station</h1>
-    <p class="hint">Selecteer het radiostation en druk op <b>Selecteren</b>.</p>
+    <p class="hint">Selecteer het radiostation en kies de actie om uit te voeren. Het resultaat wordt direct opgeslagen.</p>
 
-    <form id="wifiForm" autocomplete="off">
-      <div class="row">
-        <section class="scroll-container">
-            <!--OPTIONS-->
-        </section>
-      </div>
+    <div class="row">
+      <section id="stationSection" class="scroll-container" onScroll="scrolling();">
+          %OPTIONS%
+      </section>
+    </div>
 
-      <div class="actions">
-        <button id="submitBtn" type="submit">Selecteren</button>
-        <div id="status" class="status" aria-live="polite"></div>
+    <div class="actions">
+      <div class="column3">
+        <button id="editBtn" onClick="editStation();">Edit</button>
+        <button id="addBtn" onClick="addStation();">Add</button>
+        <button id="delBtn" onClick="delStation();">Delete</button>
       </div>
-    </form>
+      <div id="status" class="status" aria-live="polite"></div>
+    </div>
   </main>
 
   <script>
-    let observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        with(entry) if(isIntersecting) target.children[1].checked = true;
-      });
-    }, {
-      root: document.querySelector(`.scroll-container`), rootMargin: `-51% 0px -49% 0px`
+  const API_URL = "/api/stations";
+  const statusEl = document.getElementById("status");
+
+  let observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      with(entry) if(isIntersecting) target.children[1].checked = true;
     });
+  }, {
+    root: document.querySelector(`.scroll-container`), rootMargin: `-51%% 0px -49%% 0px`
+  });
 
-    document.querySelectorAll(`.scroll-item`).forEach(item => observer.observe(item));
-  </script>
+  const list = document.getElementById("stationSection");
+  const inputURL = document.createElement("input");
+  let editedLabel = null;
+  inputURL.type="text";
+  inputURL.style.visible="hidden";
+  inputURL.style.position = "absolute";
+  inputURL.style.width="0px";
+  inputURL.style.top="-100px"; //Really hide the input
+  const inputFreq = document.createElement("input");
+  inputFreq.type="text";
+  inputFreq.style.visible="hidden";
+  inputFreq.style.position = "absolute";
+  inputFreq.style.width = "65px";
+  inputFreq.style.top="-100px"; //Really hide the input
+  inputFreq.addEventListener("keypress", inputKeyPress);
+  inputURL.addEventListener("keypress", inputKeyPress);
+  list.appendChild(inputFreq);
+  list.appendChild(inputURL);
 
-  <script>
-    const API_URL = "/api/setstation";
+  document.querySelectorAll(`.scroll-item`).forEach(item => observer.observe(item));
 
-    const form = document.getElementById("wifiForm");
-    const stationEl = document.getElementById("station");
-    const btn = document.getElementById("submitBtn");
-    const statusEl = document.getElementById("status");
-
-    let registered = false;
-    let busy = false;
-
-    function setStatus(msg, type) {
-      statusEl.textContent = msg || "";
-      statusEl.classList.remove("ok", "err");
-      if (type) statusEl.classList.add(type);
+  function inputKeyPress(event) {
+    if (event.keyCode==13) {
+      scrolling();
     }
-
-    function setButton(state) {
-      // state: "ready" | "busy" | "registered"
-      if (state === "registered") {
-        btn.textContent = "Geregistreerd";
-        btn.disabled = true;
-        registered = true;
-        busy = false;
-        return;
-      }
-      if (state === "busy") {
-        btn.textContent = "Bezig…";
-        btn.disabled = true;
-        busy = true;
-        registered = false;
-        return;
-      }
-      // ready
-      btn.textContent = "Selecteren";
-      btn.disabled = false;
-      busy = false;
-      registered = false;
+    if (event.keyCode==27) {
+      scrollingIgnore();
     }
+  }
 
-    // Als gebruiker iets wijzigt: knop terug naar "Instellen"
-    function onInputChanged() {
-      if (registered || btn.disabled) {
-        setButton("ready");
-        setStatus("", null);
-      }
+  function getFrequency(text) {
+    const freq = ~~(10*parseFloat(text));
+    if ((freq<875) || (freq>1080)) {
+      return 0
+    } else {
+      return freq;
     }
-    ssidEl.addEventListener("input", onInputChanged);
+  }
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      if (busy) return;
-
-      const station = stationEl.value.trim();
-
-      if (!station) {
-        setStatus("Vul een geldig station in.", "err");
-        return;
-      }
-
-      setButton("busy");
-      setStatus("Instellen…", null);
-
-      try {
-        const resp = await fetch(API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ ssid, password })
-        });
-
-        if (resp.ok) { // 200-299
-          setButton("registered");
-          setStatus("Succesvol geregistreerd.", "ok");
-        } else {
-          // Probeer een foutmelding uit de response te halen (als die er is)
-          let details = "";
-          try { details = await resp.text(); } catch (_) {}
-          setButton("ready");
-          setStatus(`Fout: server antwoordde met ${resp.status}${details ? " – " + details : ""}`, "err");
+  function scrolling() {
+    if (editedLabel) {
+      if (inputURL.value!="") {
+        const newFreq = getFrequency(inputFreq.value);
+        if (newFreq>0) {
+          editedLabel.childNodes[0].textContent = inputURL.value;
+          const span = editedLabel.querySelector("span");
+          const freq = getFrequency(span.textContent);
+          span.textContent = inputFreq.value;
+          if (freq>0) {
+            sendToServer(3,freq,newFreq,inputURL.value); //Update
+          } else {
+            sendToServer(2,newFreq,newFreq,inputURL.value); //Add
+          }
         }
-      } catch (err) {
-        setButton("ready");
-        setStatus("Netwerkfout: kon de API niet bereiken.", "err");
       }
+      scrollingIgnore();
+    }
+  }
+
+  function scrollingIgnore() {
+    if (editedLabel) {
+      inputURL.style.visibility="hidden";
+      inputFreq.style.visibility="hidden";
+      const span = editedLabel.querySelector("span");
+      if (span.textContent=="") {
+        //If the span doesn't have a frequency, it should be deleted
+        editedLabel.remove();
+      } else {
+        editedLabel.style.visibility="visible";
+      }
+      editedLabel=null;
+    }
+  }
+
+  function editStation() {
+    const selectedRadio = document.querySelector('input[name="stations"]:checked');
+
+    if (!selectedRadio) return;
+    editedLabel = selectedRadio.parentElement;
+    updateStation();
+  }
+
+  function updateStation() {
+
+    if (!editedLabel) return;
+
+    const span = editedLabel.querySelector("span");
+    if (!span) return;
+
+    inputURL.value = editedLabel.childNodes[0].textContent.trim();
+    inputFreq.value = span.textContent;
+
+    const rect = editedLabel.getBoundingClientRect();
+    const parentRect = editedLabel.offsetParent.getBoundingClientRect();
+
+    inputURL.style.left = `${70+rect.left - parentRect.left}px`;
+    inputURL.style.top = `${8+rect.top - parentRect.top}px`;
+    inputURL.style.width = `${rect.width-70}px`;
+    inputFreq.style.left = `${rect.left - parentRect.left}px`;
+    inputFreq.style.top = `${8+rect.top - parentRect.top}px`;
+
+    editedLabel.style.visibility = "hidden";
+    inputURL.style.visibility = "visible";
+    inputFreq.style.visibility = "visible";
+    inputFreq.select();
+  }
+
+  function addStation() {
+    const list = document.getElementById("stationSection");
+    const label = document.createElement("label");
+    label.textContent = "https://radio-station-url/";
+    label.className = "scroll-item";
+    const span = document.createElement("span");
+    //span.textContent = "100.0";
+    label.appendChild(span);
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "stations";
+    label.appendChild(radio);
+    list.appendChild(label);
+    observer.observe(label);
+    list.scrollTop = list.scrollHeight; //Scroll to the end, set focus on the new element
+
+    requestAnimationFrame(() => {
+      editedLabel = label;
+      updateStation();
     });
+  }
+
+  function delStation() {
+    const selectedRadio = document.querySelector('input[name="stations"]:checked');
+    const label = selectedRadio.parentElement;
+
+    if (!label) return;
+
+    const span = label.querySelector("span");
+    if (!span) return;
+
+    const freq = getFrequency(span.textContent);
+    if (freq==0) return;
+
+    label.remove();
+    sendToServer(1,freq,freq,"-");
+  }
+
+  //
+  // Handling interaction with server
+  //
+
+  function setStatus(msg, type) {
+    statusEl.textContent = msg || "";
+    statusEl.classList.remove("ok", "err");
+    if (type) statusEl.classList.add(type);
+  }
+
+  async function sendToServer(action,freq,newfreq,url) {
+    setStatus("Instellen.", null);
+    alert(action+" "+freq+" "+newfreq+" "+url);
+    try {
+      const resp = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ action, freq, newfreq, url })
+      });
+
+      if (resp.ok) { // 200-299
+        setStatus("Updated", "ok");
+      } else {
+        // Probeer een foutmelding uit de response te halen (als die er is)
+        let details = "";
+        try { details = await resp.text(); } catch (_) {}
+        setStatus(`Fout: server antwoordde met ${resp.status}${details ? " – " + details : ""}`, "err");
+      }
+    } catch (err) {
+      setStatus("Netwerkfout: kon de API niet bereiken.", "err");
+    }
+  }
   </script>
+
 </body>
 </html>
 

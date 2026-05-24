@@ -64,7 +64,7 @@ input, textarea {
   background: rgba(255,255,255,.03);
   color: var(--text);
   outline: none;
-  font-size: 1rem;
+  font-size: .95rem;
 }
 input:focus, textarea:focus {
   border-color: color-mix(in srgb, var(--primary) 60%, white);
@@ -136,7 +136,7 @@ button[disabled] {
 /* paint */
   --topBit: calc((var(--containerHeight) - var(--itemHeight))/2);
   --footBit: calc((var(--containerHeight) + var(--itemHeight))/2);
-  background: linear-gradient(rgb(254 251 240), rgb(254 251 240) var(--topBit), rgb(59 130 246 / .5) var(--topBit), rgb(59 130 246 / .5) var(--footBit), rgb(254 251 240) var(--footBit));
+  background: linear-gradient(rgb(0 0 0), rgb(0 0 0) var(--topBit), rgb(59 130 246 / .5) var(--topBit), rgb(59 130 246 / .5) var(--footBit), rgb(0 0 0) var(--footBit));
   box-shadow: 0 0 10px #eee;
 
   .scroll-item {
@@ -161,6 +161,7 @@ button[disabled] {
     pointer-events: none;
 
     input {
+      visibility: hidden;
       appearance: none; }
     span {
       position: absolute;
