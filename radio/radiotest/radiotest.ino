@@ -18,6 +18,9 @@
 #include "radiostations.h"
 #include "css-file.h"
 
+//Should only be true ones (at initial installation)
+#define FORMAT_LITTLEFS_IF_FAILED true
+
 // Digital I/O used
 #define I2S_DOUT      21
 #define I2S_BCLK      47
@@ -44,6 +47,8 @@ AsyncWebServer server(80);
 AsyncEventSource events("/api/events");
 DNSServer dnsServer;
 char sseBuffer[200];
+char stationNameBuffer[200];
+char songTitleBuffer[200];
 Preferences prefs;
 
 int currentVolume = 0;
@@ -70,22 +75,6 @@ String processNetworks(const String& var) {
   return String();
 }
 
-/*
-String buildConfigHtml() {
-  // Injecteer <option> regels in de datalist placeholder
-  String html = FPSTR(CONFIG_HTML);
-  String opts;
-  for (int i = 0; i < networkCount; i++) {
-    // datalist gebruikt <option value="...">
-    opts += "<option value=\"";
-    opts += networks[i];
-    opts += "\"></option>\n";
-  }
-  html.replace("<!--OPTIONS-->", opts);
-  return html;
-}
-*/
-
 String processRadioStations(const String& var) {
   if (var=="OPTIONS") {
     String opts;
@@ -101,25 +90,18 @@ String processRadioStations(const String& var) {
   return String();
 }
 
-/*
-String buildRadioStationsHtml() {
-  // Dit kan eigenlijk beter met een afzonderlijke JSON API, waardoor de originel pagina statisch blijft...
-  String html = FPSTR(RADIO_HTML);
-  String opts;
-  for (int i = 0; i < stationCount; i++) {
-    // radiobuttons
-    opts += "<label class='scroll-item'>";
-    opts += stations[i].url;
-    opts += "<span>" + String(0.1*stations[i].freq,1) + "</span>";
-    opts += "<input type='radio' name='stations'></label>\n";
+String processEvents(const String& var) {
+  if (var=="STATIONNAME") {
+    return String(stationNameBuffer);
   }
-  html.replace("<!--OPTIONS-->", opts);
-  return html;
+  if (var=="SONGTITLE") {
+    return String(songTitleBuffer);
+  }
+  return String();
 }
-*/
 
 void handleEventsPage(AsyncWebServerRequest *request) {
-  request->send_P(200,"text/html",EVENTS_HTML);
+  request->send_P(200,"text/html",EVENTS_HTML,processEvents);
 }
 
 void handleRadioEditAPI(AsyncWebServerRequest *request, JsonVariant &json) {
@@ -171,6 +153,16 @@ void handleRadioEditAPI(AsyncWebServerRequest *request, JsonVariant &json) {
   return;
 }
 
+void handleStationsSaveAPI(AsyncWebServerRequest *request, JsonVariant &json) {
+
+  if (writeStations()) {
+    // Succes
+    request->send(200, "application/json", "{\"status\":\"ok\"}");
+  } else {
+    request->send(400, "text/plain", "Fout bij opslaan radiostations");
+  }
+}
+
 void handleWifiConfigAPI(AsyncWebServerRequest *request, JsonVariant &json) {
 
   const JsonObject obj = json.as<JsonObject>();
@@ -200,7 +192,7 @@ void handleWifiConfigAPI(AsyncWebServerRequest *request, JsonVariant &json) {
 
 void handleRoot(AsyncWebServerRequest *request) {
   if (networkAvailable) {
-    request->send_P(200,"text/html",EVENTS_HTML);
+    request->send_P(200,"text/html",EVENTS_HTML,processEvents);
   } else {
     request->send_P(200,"text/html",CONFIG_HTML,processNetworks);
   }
@@ -228,11 +220,13 @@ void my_audio_info(Audio::msg_t m) {
   switch (m.e) {
     case Audio::evt_name:
       events.send(m.msg,"station");
+      safeCopy(stationNameBuffer,sizeof(stationNameBuffer),m.msg);
       //Station found
       digitalWrite(39,HIGH);
       break;
     case Audio::evt_streamtitle:
       events.send(m.msg,"song");
+      safeCopy(songTitleBuffer,sizeof(songTitleBuffer),m.msg);
       break;
     default:
       sprintf(sseBuffer,"%s: %s\n\n", m.s, m.msg);
@@ -355,6 +349,7 @@ void setupWebServer() {
   server.on("/wificonfig",handleWifiConfig);
   server.addHandler(new AsyncCallbackJsonWebHandler("/api/wificonfig",handleWifiConfigAPI));
   server.addHandler(new AsyncCallbackJsonWebHandler("/api/stations",handleRadioEditAPI));
+  server.addHandler(new AsyncCallbackJsonWebHandler("/api/savestations",handleStationsSaveAPI));
   events.onConnect([](AsyncEventSourceClient *client){
     if(client->lastId()){
       Debugln("Client reconnected!");
@@ -384,7 +379,20 @@ void debugPartitionInfo() {
   Debugln(app->size / 1024);
 }
 
+void setupStations() {
+  if (!LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED)) {
+    Debugln("LittleFS Mount Failed");
+    loadStations(); //Fall back to predefined stations
+    return;
+  }
+  if (!readStations()) {
+    loadStations(); //Fall back to predefined stations
+  }
+}
+
 void setup() {
+  stationNameBuffer[0] = '\0';
+  songTitleBuffer[0] = '\0';
   rgbLedWrite(RGB_BUILTIN, 255, 0, 0);  // Red - indicating we've got lift-off
   initSensors();
   DebugBegin(115200);
@@ -395,7 +403,7 @@ void setup() {
   Debugln(RGB_BUILTIN);
   debugPartitionInfo();
   initAudio();
-  loadStations();
+  setupStations();
   //Try a connection to the WiFI
   setupWiFi();
   rgbLedWrite(RGB_BUILTIN,0,0,0); //LED off

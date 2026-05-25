@@ -81,6 +81,11 @@ input:focus, textarea:focus {
   grid-template-columns:  1fr 1fr 1fr;
   gap: 12px;
 }
+.column4 {
+  display: grid;
+  grid-template-columns:  1fr 1fr 1fr 1fr;
+  gap: 12px;
+}
 
 .actions {
   display: grid;
@@ -122,7 +127,7 @@ button[disabled] {
   --itemHeight: 60px;
   --itemGap: 10px;
   --containerHeight: calc((var(--itemHeight) * 7) + (var(--itemGap) * 6));
-  width: 400px;
+  width: 100%;
   height: var(--containerHeight);
   display: flex;
   flex-direction: column;

@@ -17,7 +17,7 @@ const char RADIO_HTML[] PROGMEM = R"=====(
 <body>
   <main class="card">
     <h1>Radio station</h1>
-    <p class="hint">Selecteer het radiostation en kies de actie om uit te voeren. Het resultaat wordt direct opgeslagen.</p>
+    <p class="hint">Selecteer het radiostation en kies de actie. Resultaten blijven bewaard tot de radio uit wordt gezet. Kies <save> om definitief te bewaren.</p>
 
     <div class="row">
       <section id="stationSection" class="scroll-container" onScroll="scrolling();">
@@ -26,10 +26,11 @@ const char RADIO_HTML[] PROGMEM = R"=====(
     </div>
 
     <div class="actions">
-      <div class="column3">
+      <div class="column4">
         <button id="editBtn" onClick="editStation();">Edit</button>
         <button id="addBtn" onClick="addStation();">Add</button>
         <button id="delBtn" onClick="delStation();">Delete</button>
+        <button id="saveBtn" onClick="saveStations();" disabled>Save</button>
       </div>
       <div id="status" class="status" aria-live="polite"></div>
     </div>
@@ -37,7 +38,9 @@ const char RADIO_HTML[] PROGMEM = R"=====(
 
   <script>
   const API_URL = "/api/stations";
+  const SAVE_API_URL = "/api/savestations";
   const statusEl = document.getElementById("status");
+  const saveBtn = document.getElementById("saveBtn");
 
   let observer = new IntersectionObserver(entries => {
     entries.forEach(entry => {
@@ -203,8 +206,7 @@ const char RADIO_HTML[] PROGMEM = R"=====(
   }
 
   async function sendToServer(action,freq,newfreq,url) {
-    setStatus("Instellen.", null);
-    alert(action+" "+freq+" "+newfreq+" "+url);
+    setStatus("Bezig met instellen...", null);
     try {
       const resp = await fetch(API_URL, {
         method: "POST",
@@ -215,7 +217,34 @@ const char RADIO_HTML[] PROGMEM = R"=====(
       });
 
       if (resp.ok) { // 200-299
-        setStatus("Updated", "ok");
+        setStatus("Aangepast", "ok");
+        saveBtn.disabled = false;
+      } else {
+        // Probeer een foutmelding uit de response te halen (als die er is)
+        let details = "";
+        try { details = await resp.text(); } catch (_) {}
+        setStatus(`Fout: server antwoordde met ${resp.status}${details ? " – " + details : ""}`, "err");
+      }
+    } catch (err) {
+      setStatus("Netwerkfout: kon de API niet bereiken.", "err");
+    }
+  }
+
+  async function saveStations() {
+    setStatus("Bezig met opslaan...", null);
+    saveBtn.disabled = true;
+    const action = 0;
+    try {
+      const resp = await fetch(SAVE_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ action})
+      });
+
+      if (resp.ok) { // 200-299
+        setStatus("Radiostations opgeslagen", "ok");
       } else {
         // Probeer een foutmelding uit de response te halen (als die er is)
         let details = "";

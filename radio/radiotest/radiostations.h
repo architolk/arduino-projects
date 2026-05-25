@@ -126,39 +126,43 @@ void loadStations() {
 }
 
 //Load stations from LittleFS
-void readStations() {
-  //TODO: File systeme initializing - haven't done this yet - LittleFS.begin()
+bool readStations() {
+  //Needs LittleFS.begin() at setup
   float freq;
   char url[MAX_URL_LENGTH];
   char buffer[MAX_URL_LENGTH];
   File file = LittleFS.open("/stations.txt",FILE_READ);
   if (!file) {
     Debugln("Opening file failed");
-    return;
+    return false;
   }
 
+  bool stationFound = false;
   while (file.available()) {
-    file.readBytesUntil('\n',buffer,MAX_URL_LENGTH); //Doesn't exists! waarschijnlijk gelijk doen aan PROGMEM...
+    file.readBytesUntil('\n',buffer,MAX_URL_LENGTH);
     if (sscanf(buffer,"%f %99s", &freq, url) == 2) {
       addStation(freq*10,url);
+      stationFound = true;
     }
   }
   file.close();
+  return stationFound;
 }
 
 //Write stations to LittleFS
-void writeStations() {
+bool writeStations() {
   char buffer[MAX_URL_LENGTH];
   File file = LittleFS.open("/stations.txt",FILE_WRITE);
   if (!file) {
     Debugln("Writing file failed");
-    return;
+    return false;
   }
   for (int i=0; i<stationCount; i++) {
-    sprintf(buffer,"%f %99s",1.0f*stations[i].freq/10.0f,stations[i].url);
+    sprintf(buffer,"%.1f %s",0.1f*stations[i].freq,stations[i].url);
     file.println(buffer);
   }
   file.close();
+  return true;
 }
 
 bool getStation(int freq, Station** station) {

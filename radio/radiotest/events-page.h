@@ -17,7 +17,7 @@ const char EVENTS_HTML[] PROGMEM = R"=====(
     <div class="row">
       <div>
         <label for="station">Radio station</label>
-        <input id="station" name="station" value="" readonly />
+        <input id="station" name="station" value="%STATIONNAME%" readonly />
       </div>
 
       <div class="column3">
@@ -37,7 +37,7 @@ const char EVENTS_HTML[] PROGMEM = R"=====(
 
       <div>
         <label for="song">Song</label>
-        <input id="song" name="song" value="" readonly />
+        <input id="song" name="song" value="%SONGTITLE%" readonly />
       </div>
 
       <div>
