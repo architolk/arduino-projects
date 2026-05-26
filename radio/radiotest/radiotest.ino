@@ -15,6 +15,7 @@
 #include "config-page.h"
 #include "events-page.h"
 #include "radio-page.h"
+#include "upload-page.h"
 #include "radiostations.h"
 #include "css-file.h"
 
@@ -104,6 +105,14 @@ void handleEventsPage(AsyncWebServerRequest *request) {
   request->send_P(200,"text/html",EVENTS_HTML,processEvents);
 }
 
+void handleStationsFile(AsyncWebServerRequest *request) {
+  request->send(LittleFS, "/stations.txt", String(), true);
+}
+
+void handleUploadPage(AsyncWebServerRequest *request) {
+  request->send_P(200,"text/html",UPLOAD_HTML);
+}
+
 void handleRadioEditAPI(AsyncWebServerRequest *request, JsonVariant &json) {
   const JsonObject obj = json.as<JsonObject>();
   if (!obj) {
@@ -151,6 +160,39 @@ void handleRadioEditAPI(AsyncWebServerRequest *request, JsonVariant &json) {
   }
   request->send(400, "text/plain", "Onbekende actie");
   return;
+}
+
+void handleUploadAPI(AsyncWebServerRequest *request) {
+  if (request->getResponse()) {
+    // 400 File not available for writing (done in handleUploadFileAPI)
+    return;
+  }
+  request->send(200, "application/json", "{\"status\":\"ok\"}");
+}
+
+void handleUploadFileAPI(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+  Debug("Upload [");
+  Debug(filename);
+  Debug("]: start=");
+  Debug(index);
+  Debug(", len=");
+  Debug(len);
+  if (final) {Debugln(" (final)");} else {Debugln(" (continue)");}
+  //index==0 => Start of file upload
+  if (index == 0) {
+    request->_tempFile = LittleFS.open("/stations.txt", "w");
+  }
+  if (!request->_tempFile) {
+    request->send(400, "text/plain", "File not available for writing");
+    return;
+  }
+  if (len>0) {
+    request->_tempFile.write(data, len);
+  }
+  //final==true => End of file upload
+  if (final) {
+    request->_tempFile.close();
+  }
 }
 
 void handleStationsSaveAPI(AsyncWebServerRequest *request, JsonVariant &json) {
@@ -347,6 +389,9 @@ void setupWebServer() {
   server.on("/events", handleEventsPage);
   server.on("/stations",handleStationsPage);
   server.on("/wificonfig",handleWifiConfig);
+  server.on("/upload",handleUploadPage);
+  server.on("/api/upload",HTTP_POST, handleUploadAPI,handleUploadFileAPI);
+  server.on("/stations.txt",handleStationsFile);
   server.addHandler(new AsyncCallbackJsonWebHandler("/api/wificonfig",handleWifiConfigAPI));
   server.addHandler(new AsyncCallbackJsonWebHandler("/api/stations",handleRadioEditAPI));
   server.addHandler(new AsyncCallbackJsonWebHandler("/api/savestations",handleStationsSaveAPI));
@@ -557,7 +602,10 @@ void checkTouch() {
     digitalWrite(42,HIGH);
   }
   if (t7 && (currentPreset==0)) {
-    freq = map(analogRead(1),0,4095,870,1080);
+    int value = analogRead(1);
+    freq = map(value,0,4095,870,1080);
+    sprintf(sseBuffer,"%d / %d",freq,value); //Tijdelijk, om frequentie te kunnen bekijken
+    events.send(sseBuffer,"volume");
   }
   if (freq!=0) {
     Station* station;

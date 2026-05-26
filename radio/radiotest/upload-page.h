@@ -14,19 +14,23 @@ const char UPLOAD_HTML[] PROGMEM = R"=====(
 <body>
   <main class="card">
     <h1>File upload</h1>
-    <p class="hint">Geef file met stations</p>
+    <p class="hint">Geef bestand met radio stations</p>
 
     <form id="uploadform" method="POST" enctype="multipart/form-data">
       <div class="row">
         <div>
-          <label for="file">SSID</label>
-          <input id="file" name="file" inputmode="file" required />
+          <label for="file">Radio stations file</label>
+          <input id="file" name="file" type="file" required />
         </div>
 
       </div>
 
       <div class="actions">
-        <button id="submitBtn" type="submit">Instellen</button>
+        <div class="column3">
+          <button id="submitBtn" type="submit">Upload</button>
+          <button id="downloadBtn" onClick="downloadFile();">Download</button>
+          <button id="deleteBtn" onClick="deleteFile();">Delete</button>
+        </div>
         <div id="status" class="status" aria-live="polite"></div>
       </div>
     </form>
@@ -35,24 +39,47 @@ const char UPLOAD_HTML[] PROGMEM = R"=====(
 <script>
 const API_URL = "/api/upload";
 
-var form = document.getElementById('uploadform');
+const statusEl = document.getElementById("status");
+const btn = document.getElementById("submitBtn");
 
+function setStatus(msg, type) {
+  statusEl.textContent = msg || "";
+  statusEl.classList.remove("ok", "err");
+  if (type) statusEl.classList.add(type);
+}
+
+var form = document.getElementById('uploadform');
 form.onsubmit = async (e) => {
   e.preventDefault();
+  setStatus("Bezig...", null);
+  btn.disabled = true;
   const form = e.currentTarget;
 
   try {
-      const formData = new FormData(form);
-      const response = await fetch(API_URL, {
-          method: 'POST',
-          body: formData
-      });
+    const formData = new FormData(form);
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      body: formData
+    });
 
-      console.log(response);
-  } catch (error) {
-      console.error(error);
+    btn.disabled = false;
+    if (resp.ok) { // 200-299
+      setStatus("Bestand opgeslagen", "ok");
+    } else {
+      // Probeer een foutmelding uit de response te halen (als die er is)
+      let details = "";
+      try { details = await resp.text(); } catch (_) {}
+      setStatus(`Fout: server antwoordde met ${resp.status}${details ? " – " + details : ""}`, "err");
+    }
+  } catch (err) {
+    btn.disabled = false;
+    setStatus("Netwerkfout: kon de API niet bereiken.", "err");
   }
 
+}
+
+function downloadFile() {
+  window.open("stations.txt");
 }
 </script>
 

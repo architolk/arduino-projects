@@ -1,5 +1,5 @@
 //Uncomment to enable debug (writing stuff to serial)
-#define DEBUG
+//#define DEBUG
 
 #ifndef _DEBUG_H_
 #define _DEBUG_H_
