@@ -23,15 +23,15 @@ const char EVENTS_HTML[] PROGMEM = R"=====(
       <div class="column3">
         <div>
           <label for="volume">Volume</label>
-          <input id="volume" name="volume" value="" readonly />
+          <input id="volume" name="volume" value="%VOLUME%" readonly />
         </div>
         <div>
           <label for="treble">Treble</label>
-          <input id="treble" name="treble" value="" readonly />
+          <input id="treble" name="treble" value="%TREBLE%" readonly />
         </div>
         <div>
           <label for="bass">Bass</label>
-          <input id="bass" name="bass" value="" readonly />
+          <input id="bass" name="bass" value="%BASS%" readonly />
         </div>
       </div>
 

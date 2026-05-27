@@ -58,6 +58,12 @@ int currentTreble = 0;
 int currentFreq = 0;
 int currentPreset = 0; //FM Manual;
 
+bool easterEggMode = false;
+int flashLEDPosition = 0;
+int flashLEDDirection = 1;
+unsigned long previousEggMillis = 0;
+#define FLASH_INTERVAL 200
+
 #define MAXNETWORKS 10
 String networks[MAXNETWORKS];
 int networkCount = 0;
@@ -97,6 +103,15 @@ String processEvents(const String& var) {
   }
   if (var=="SONGTITLE") {
     return String(songTitleBuffer);
+  }
+  if (var=="VOLUME") {
+    return String(currentVolume);
+  }
+  if (var=="TREBLE") {
+    return String(currentTreble);
+  }
+  if (var=="BASS") {
+    return String(currentBass);
   }
   return String();
 }
@@ -435,6 +450,16 @@ void setupStations() {
   }
 }
 
+void calibrateSensors() {
+  //First reading of touch sensors is incorrect, so drop these
+  bool t11 = (touchRead(11)>TOUCH_SENSITIVITY);
+  bool t12 = (touchRead(12)>TOUCH_SENSITIVITY);
+  bool t13 = (touchRead(13)>TOUCH_SENSITIVITY);
+  bool t14 = (touchRead(14)>TOUCH_SENSITIVITY);
+  //Actual calibrating routine is not performed... TODO...
+  showLED(currentPreset); //currentPreset = 0, FM manual at startup
+}
+
 void setup() {
   stationNameBuffer[0] = '\0';
   songTitleBuffer[0] = '\0';
@@ -446,6 +471,7 @@ void setup() {
   Debugln("Starting");
   Debug("RGB Buildtin pin: ");
   Debugln(RGB_BUILTIN);
+  calibrateSensors();
   debugPartitionInfo();
   initAudio();
   setupStations();
@@ -488,6 +514,20 @@ void checkSensors() {
   }
 }
 
+void checkEasterEggMode() {
+  //Toggle LEDs when in easter egg mode.
+  if (easterEggMode) {
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousEggMillis >= FLASH_INTERVAL) {
+      previousEggMillis = currentMillis;
+      flashLEDPosition = flashLEDPosition + flashLEDDirection;
+      if (flashLEDPosition>=4) flashLEDDirection = -1;
+      if (flashLEDPosition<=0) flashLEDDirection = 1;
+      showLED(flashLEDPosition);
+    }
+  }
+}
+
 void checkAudioSettings() {
   float value = analogRead(4);
   value = powf(value/4095.0f,0.31f)*4095.0f; //Compensate for log potentiometer
@@ -526,6 +566,72 @@ void checkAudioSettings() {
   };
 }
 
+int getFrequency(int pin, bool fineTuning) {
+  float value1 = analogRead(pin); vTaskDelay(1);
+  float value2 = analogRead(pin); vTaskDelay(1);
+  float value3 = analogRead(pin);
+  float value = (value1+value2+value3)/3.0f; //Take average, compensate for measure inconsistancies
+  value = powf(value/4095.0f,0.517f)*4095.0f; //Compensate potentiometer
+  if (fineTuning) {
+    float fine1 = analogRead(2); vTaskDelay(1);
+    float fine2 = analogRead(2); vTaskDelay(1);
+    float fine3 = analogRead(2);
+    float fine = (fine1+fine2+fine3)/3.0f;
+    return 10*map(value,0,4095,85,110) + map(fine,0,4095,0,9); //Fine tuning does .x value 
+  } else {
+  return map(value,0,4095,850,1100);  }
+}
+
+void showLED(int led) {
+  switch (led) {
+    case 0: {
+      pinMode(42,INPUT);
+      pinMode(41,OUTPUT);
+      pinMode(40,OUTPUT);
+      digitalWrite(41,LOW);
+      digitalWrite(40,HIGH);
+      break;
+    }
+    case 1: {
+      pinMode(40,INPUT);
+      pinMode(42,OUTPUT);
+      pinMode(41,OUTPUT);
+      digitalWrite(42,LOW);
+      digitalWrite(41,HIGH);
+      break;
+    }
+    case 2: {
+      pinMode(41,INPUT);
+      pinMode(42,OUTPUT);
+      pinMode(40,OUTPUT);
+      digitalWrite(42,LOW);
+      digitalWrite(40,HIGH);
+      break;
+    }
+    case 3: {
+      pinMode(42,INPUT);
+      pinMode(40,OUTPUT);
+      pinMode(41,OUTPUT);
+      digitalWrite(40,LOW);
+      digitalWrite(41,HIGH);
+      break;
+    }
+    case 4: {
+      pinMode(40,INPUT);
+      pinMode(41,OUTPUT);
+      pinMode(42,OUTPUT);
+      digitalWrite(41,LOW);
+      digitalWrite(42,HIGH);
+      break;
+    }
+    default: {
+      pinMode(40,INPUT);
+      pinMode(41,INPUT);
+      pinMode(42,INPUT);
+    }
+  }
+}
+
 void checkTouch() {
   int freq = 0;
   bool t11 = (touchRead(11)>TOUCH_SENSITIVITY);
@@ -533,34 +639,51 @@ void checkTouch() {
   bool t13 = (touchRead(13)>TOUCH_SENSITIVITY);
   bool t14 = (touchRead(14)>TOUCH_SENSITIVITY);
   bool t7 = (digitalRead(7)==HIGH);
+  if (t11 && t12 && t14) {
+    //Easter egg mode when three buttons are pressed AND the fine tuning dial is at zero position
+    easterEggMode = (analogRead(2)<10);
+  }
   if (t11 && (!t12)) {
     currentPreset = 3;
-    freq = map(analogRead(9),0,4095,870,1080);
+    easterEggMode = false;
+    //freq = map(analogRead(9),0,4095,870,1080);
+    freq = getFrequency(9,false);
     Debug("Preset 3: ");
     Debugln(freq);
-    //Show LED
-    pinMode(42,INPUT);
-    pinMode(40,OUTPUT);
-    pinMode(41,OUTPUT);
-    digitalWrite(40,LOW);
-    digitalWrite(41,HIGH);
-
+    showLED(3);
   };
   if (t12 && (!t11)) {
     currentPreset = 2;
-    freq = map(analogRead(3),0,4095,870,1080);
+    easterEggMode = false;
+    //freq = map(analogRead(3),0,4095,870,1080);
+    freq = getFrequency(3,false);
     Debug("Preset 2: ");
     Debugln(freq);
-    //Show LED
-    pinMode(41,INPUT);
-    pinMode(42,OUTPUT);
-    pinMode(40,OUTPUT);
-    digitalWrite(42,LOW);
-    digitalWrite(40,HIGH);
+    showLED(2);
   };
+  if (t14 && (!t11)) {
+    currentPreset = 1;
+    easterEggMode = false;
+    //freq = map(analogRead(8),0,4095,870,1080);
+    freq = getFrequency(8,false);
+    Debug("Preset 1: ");
+    Debugln(freq);
+    showLED(1);
+  };
+  if (t11 && t12 && (!t14)) {
+    currentPreset = 4;
+    easterEggMode = false;
+    //freq = map(analogRead(10),0,4095,870,1080);
+    freq = getFrequency(10,false);
+    Debug("Preset 4: ");
+    Debugln(freq);
+    showLED(4);
+  }
   if (t13) {
     currentPreset = 0;
-    freq = map(analogRead(1),0,4095,870,1080);
+    easterEggMode = false;
+    //freq = map(analogRead(1),0,4095,870,1080);
+    freq = getFrequency(1,true);
     Debug("Preset MAN: ");
     Debug(freq); //FM tuning
     Debug(" / ");
@@ -570,42 +693,15 @@ void checkTouch() {
     } else {
       Debugln(" (off)");
     }
-    //Show LED
-    pinMode(42,INPUT);
-    pinMode(41,OUTPUT);
-    pinMode(40,OUTPUT);
-    digitalWrite(41,LOW);
-    digitalWrite(40,HIGH);
+    showLED(0);
   };
-  if (t14) {
-    currentPreset = 1;
-    freq = map(analogRead(8),0,4095,870,1080);
-    Debug("Preset 1: ");
-    Debugln(freq);
-    //Show LED
-    pinMode(40,INPUT);
-    pinMode(42,OUTPUT);
-    pinMode(41,OUTPUT);
-    digitalWrite(42,LOW);
-    digitalWrite(41,HIGH);
-  };
-  if (t11 && t12) {
-    currentPreset = 4;
-    freq = map(analogRead(10),0,4095,870,1080);
-    Debug("Preset 4: ");
-    Debugln(freq);
-    //Show LED
-    pinMode(40,INPUT);
-    pinMode(41,OUTPUT);
-    pinMode(42,OUTPUT);
-    digitalWrite(41,LOW);
-    digitalWrite(42,HIGH);
-  }
   if (t7 && (currentPreset==0)) {
-    int value = analogRead(1);
-    freq = map(value,0,4095,870,1080);
-    sprintf(sseBuffer,"%d / %d",freq,value); //Tijdelijk, om frequentie te kunnen bekijken
-    events.send(sseBuffer,"volume");
+    /*
+    float value = analogRead(1);
+    value = powf(value/4095.0f,0.517f)*4095.0f; //Compensate potentiometer
+    freq = map(value,0,4095,850,1100); //Map to actual frequencies as displayed on the radio
+    */
+    freq = getFrequency(1,true);
   }
   if (freq!=0) {
     Station* station;
@@ -640,6 +736,7 @@ void loop(){
     }
   }
   checkSensors();
+  checkEasterEggMode();
   ElegantOTA.loop();
   vTaskDelay(1);
 }
