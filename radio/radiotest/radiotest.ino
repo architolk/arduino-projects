@@ -20,7 +20,7 @@
 #include "css-file.h"
 
 //Should only be true ones (at initial installation)
-#define FORMAT_LITTLEFS_IF_FAILED true
+#define FORMAT_LITTLEFS_IF_FAILED false
 
 // Digital I/O used
 #define I2S_DOUT      21
@@ -380,22 +380,10 @@ void setupAudio() {
   Debug(" LRC: ");
   Debugln(I2S_LRC);
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
-  /*
-  audio.setVolumeCurve([](float t) {
-    //return -60.0f + 60.0f * t;
-    return -60.8f + 60.8f * sqrt(t);
-  });
-  */
   audio.setVolume(15); // default 0...21
 
-  Station* station;
-  if (getStation(900,&station)) {
-    audio.connecttohost(station->url);
-  } else {
-    //Connect to this radiostation by default
-    audio.connecttohost("http://stream.antennethueringen.de/live/aac-64/stream.antennethueringen.de/");
-  }
   audioAvailable = true;
+  setRadioStation(getFrequency(1,true));
 }
 
 void setupWebServer() {
@@ -632,78 +620,8 @@ void showLED(int led) {
   }
 }
 
-void checkTouch() {
-  int freq = 0;
-  bool t11 = (touchRead(11)>TOUCH_SENSITIVITY);
-  bool t12 = (touchRead(12)>TOUCH_SENSITIVITY);
-  bool t13 = (touchRead(13)>TOUCH_SENSITIVITY);
-  bool t14 = (touchRead(14)>TOUCH_SENSITIVITY);
-  bool t7 = (digitalRead(7)==HIGH);
-  if (t11 && t12 && t14) {
-    //Easter egg mode when three buttons are pressed AND the fine tuning dial is at zero position
-    easterEggMode = (analogRead(2)<10);
-  }
-  if (t11 && (!t12)) {
-    currentPreset = 3;
-    easterEggMode = false;
-    //freq = map(analogRead(9),0,4095,870,1080);
-    freq = getFrequency(9,false);
-    Debug("Preset 3: ");
-    Debugln(freq);
-    showLED(3);
-  };
-  if (t12 && (!t11)) {
-    currentPreset = 2;
-    easterEggMode = false;
-    //freq = map(analogRead(3),0,4095,870,1080);
-    freq = getFrequency(3,false);
-    Debug("Preset 2: ");
-    Debugln(freq);
-    showLED(2);
-  };
-  if (t14 && (!t11)) {
-    currentPreset = 1;
-    easterEggMode = false;
-    //freq = map(analogRead(8),0,4095,870,1080);
-    freq = getFrequency(8,false);
-    Debug("Preset 1: ");
-    Debugln(freq);
-    showLED(1);
-  };
-  if (t11 && t12 && (!t14)) {
-    currentPreset = 4;
-    easterEggMode = false;
-    //freq = map(analogRead(10),0,4095,870,1080);
-    freq = getFrequency(10,false);
-    Debug("Preset 4: ");
-    Debugln(freq);
-    showLED(4);
-  }
-  if (t13) {
-    currentPreset = 0;
-    easterEggMode = false;
-    //freq = map(analogRead(1),0,4095,870,1080);
-    freq = getFrequency(1,true);
-    Debug("Preset MAN: ");
-    Debug(freq); //FM tuning
-    Debug(" / ");
-    Debug(map(analogRead(2),0,4095,870,1080)); //FM fine tuning
-    if (t7) { //FM Lock
-      Debugln(" (on)");
-    } else {
-      Debugln(" (off)");
-    }
-    showLED(0);
-  };
-  if (t7 && (currentPreset==0)) {
-    /*
-    float value = analogRead(1);
-    value = powf(value/4095.0f,0.517f)*4095.0f; //Compensate potentiometer
-    freq = map(value,0,4095,850,1100); //Map to actual frequencies as displayed on the radio
-    */
-    freq = getFrequency(1,true);
-  }
-  if (freq!=0) {
+void setRadioStation(int freq) {
+  if (freq>0) {
     Station* station;
     if (getStation(freq,&station)) {
       if (currentFreq!=station->freq) { //Only switch if a different station is selected!
@@ -720,6 +638,72 @@ void checkTouch() {
   }
 }
 
+void checkTouch() {
+  int freq = 0;
+  bool t11 = (touchRead(11)>TOUCH_SENSITIVITY);
+  bool t12 = (touchRead(12)>TOUCH_SENSITIVITY);
+  bool t13 = (touchRead(13)>TOUCH_SENSITIVITY);
+  bool t14 = (touchRead(14)>TOUCH_SENSITIVITY);
+  bool t7 = (digitalRead(7)==HIGH);
+  if (t11 && t12 && t14) {
+    //Easter egg mode when three buttons are pressed AND the fine tuning dial is at zero position
+    easterEggMode = (analogRead(2)<10);
+  }
+  if (t11 && (!t12)) {
+    currentPreset = 3;
+    easterEggMode = false;
+    freq = getFrequency(9,false);
+    Debug("Preset 3: ");
+    Debugln(freq);
+    showLED(3);
+  };
+  if (t12 && (!t11)) {
+    currentPreset = 2;
+    easterEggMode = false;
+    freq = getFrequency(3,false);
+    Debug("Preset 2: ");
+    Debugln(freq);
+    showLED(2);
+  };
+  if (t14 && (!t11)) {
+    currentPreset = 1;
+    easterEggMode = false;
+    freq = getFrequency(8,false);
+    Debug("Preset 1: ");
+    Debugln(freq);
+    showLED(1);
+  };
+  if (t11 && t12 && (!t14)) {
+    currentPreset = 4;
+    easterEggMode = false;
+    freq = getFrequency(10,false);
+    Debug("Preset 4: ");
+    Debugln(freq);
+    showLED(4);
+  }
+  if (t13) {
+    currentPreset = 0;
+    easterEggMode = false;
+    freq = getFrequency(1,true);
+    Debug("Preset MAN: ");
+    Debug(freq); //FM tuning
+    Debug(" / ");
+    Debug(map(analogRead(2),0,4095,870,1080)); //FM fine tuning
+    if (t7) { //FM Lock
+      Debugln(" (on)");
+    } else {
+      Debugln(" (off)");
+    }
+    showLED(0);
+  };
+  if (t7 && (currentPreset==0)) {
+    freq = getFrequency(1,true);
+  }
+  if (freq!=0) {
+    setRadioStation(freq);
+  }
+}
+
 void loop(){
   if (networkAvailable) {
     audio.loop();
@@ -731,7 +715,6 @@ void loop(){
       if (networkAvailable) {
         rgbLedWrite(RGB_BUILTIN,0,0,0); //LED off
         setupAudio();
-        setupWebServer();
       }
     }
   }
