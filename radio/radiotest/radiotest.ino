@@ -121,7 +121,11 @@ void handleEventsPage(AsyncWebServerRequest *request) {
 }
 
 void handleStationsFile(AsyncWebServerRequest *request) {
-  request->send(LittleFS, "/stations.txt", String(), true);
+  if (LittleFS.exists("/stations.txt")) {
+    request->send(LittleFS, "/stations.txt", String(), true);
+  } else {
+    request->send(400, "text/plain", "File not found");
+  }
 }
 
 void handleUploadPage(AsyncWebServerRequest *request) {
@@ -157,7 +161,6 @@ void handleRadioEditAPI(AsyncWebServerRequest *request, JsonVariant &json) {
     return;
   }
   if (action==2) {
-    request->send(400, "text/plain", "Add not implemented yet");
     if (addStation(freq,url)) {
       request->send(200, "application/json", "{\"status\":\"ok\"}");
     } else {
@@ -198,7 +201,7 @@ void handleUploadFileAPI(AsyncWebServerRequest *request, String filename, size_t
     request->_tempFile = LittleFS.open("/stations.txt", "w");
   }
   if (!request->_tempFile) {
-    request->send(400, "text/plain", "File not available for writing");
+    request->send(400, "text/plain", "Kon stations.txt niet wegschrijven");
     return;
   }
   if (len>0) {
@@ -207,6 +210,14 @@ void handleUploadFileAPI(AsyncWebServerRequest *request, String filename, size_t
   //final==true => End of file upload
   if (final) {
     request->_tempFile.close();
+  }
+}
+
+void handleDeleteFileAPI(AsyncWebServerRequest *request, JsonVariant &json) {
+  if (!LittleFS.remove("/stations.txt")) {
+    request->send(400, "text/plain", "Kon stations.txt niet verwijderen");
+  } else {
+    request->send(200, "application/json", "{\"status\":\"ok\"}");
   }
 }
 
@@ -398,6 +409,7 @@ void setupWebServer() {
   server.addHandler(new AsyncCallbackJsonWebHandler("/api/wificonfig",handleWifiConfigAPI));
   server.addHandler(new AsyncCallbackJsonWebHandler("/api/stations",handleRadioEditAPI));
   server.addHandler(new AsyncCallbackJsonWebHandler("/api/savestations",handleStationsSaveAPI));
+  server.addHandler(new AsyncCallbackJsonWebHandler("/api/deletefile",handleDeleteFileAPI));
   events.onConnect([](AsyncEventSourceClient *client){
     if(client->lastId()){
       Debugln("Client reconnected!");
@@ -565,7 +577,7 @@ int getFrequency(int pin, bool fineTuning) {
     float fine2 = analogRead(2); vTaskDelay(1);
     float fine3 = analogRead(2);
     float fine = (fine1+fine2+fine3)/3.0f;
-    return 10*map(value,0,4095,85,110) + map(fine,0,4095,0,9); //Fine tuning does .x value 
+    return 10*map(value,0,4095,85,110) + map(fine,0,4095,0,9); //Fine tuning does .x value
   } else {
   return map(value,0,4095,850,1100);  }
 }
